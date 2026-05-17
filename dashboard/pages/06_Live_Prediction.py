@@ -66,6 +66,19 @@ st.markdown(
 )
 
 if not _DATA_PATH.exists():
+    try:
+        from utils.download_assets import ensure_test_data, ensure_model_v1, ensure_model_v3
+        ensure_test_data()
+        ensure_model_v1()
+        if _MODEL_V3_PATH.parent.exists():
+            try:
+                ensure_model_v3()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+if not _DATA_PATH.exists():
     st.info(
         "Demo rezim: stvarni PTB-XL podaci nisu dostupni. "
         "Prikazuju se sinteticki signali za demonstraciju."

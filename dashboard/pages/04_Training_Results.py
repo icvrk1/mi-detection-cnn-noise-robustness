@@ -176,6 +176,13 @@ if v3_available:
         )
 else:
     if not _HIST_V1.exists() or not _EVAL_V1.exists():
+        try:
+            from utils.download_assets import ensure_training_results
+            ensure_training_results()
+        except Exception:
+            pass
+
+    if not _HIST_V1.exists() or not _EVAL_V1.exists():
         st.info(
             "Demo rezim: fajlovi treninga nisu dostupni. "
             "Prikazuju se simulirani rezultati za demonstraciju."

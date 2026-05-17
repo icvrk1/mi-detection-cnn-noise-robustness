@@ -309,6 +309,13 @@ st.markdown(
     "Podaci iz stvarne evaluacije na 1 462 test snimaka za svaku od 30 kombinacija (suma x SNR)."
 )
 
+if not _NOISY_V1.exists():
+    try:
+        from utils.download_assets import ensure_noisy_results
+        ensure_noisy_results()
+    except Exception:
+        pass
+
 _USING_MOCK = not _NOISY_V1.exists()
 if _USING_MOCK:
     st.info(
