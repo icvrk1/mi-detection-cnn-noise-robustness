@@ -1,5 +1,8 @@
 # Podaci i generisani izlazi
-data/
+data/raw
+data/noisy
+data/processed/*
+!data/processed/test_clean.npz
 outputs/models/
 outputs/figures/
 outputs/logs/

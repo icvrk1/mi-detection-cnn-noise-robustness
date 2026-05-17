@@ -87,10 +87,14 @@ if dist:
 st.markdown("---")
 
 if not _DATA_PATH.exists():
-    st.error(f"Podaci nisu pronadjeni: {_DATA_PATH}")
-    st.stop()
-
-signals, labels = load_test_signals()
+    st.info(
+        "Demo rezim: stvarni PTB-XL podaci nisu dostupni. "
+        "Prikazuju se sinteticki signali za demonstraciju."
+    )
+    from mock_data import get_mock_signals_12ch
+    signals, labels = get_mock_signals_12ch()
+else:
+    signals, labels = load_test_signals()
 
 
 st.sidebar.header("Pretraga signala")

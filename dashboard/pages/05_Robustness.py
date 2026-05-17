@@ -309,12 +309,17 @@ st.markdown(
     "Podaci iz stvarne evaluacije na 1 462 test snimaka za svaku od 30 kombinacija (suma x SNR)."
 )
 
-if not _NOISY_V1.exists():
-    st.error(f"Nedostaje: {_NOISY_V1}. Pokrenite skripte 04 i 05.")
-    st.stop()
+_USING_MOCK = not _NOISY_V1.exists()
+if _USING_MOCK:
+    st.info(
+        "Demo rezim: stvarni rezultati evaluacije nisu dostupni. "
+        "Prikazuju se simulirani podaci za demonstraciju."
+    )
+    from mock_data import get_mock_noisy_eval, get_mock_clean_eval
+    _mock_noisy = get_mock_noisy_eval()
+    _mock_clean = get_mock_clean_eval()
 
-v3_available = _NOISY_V3.exists() and _CLEAN_V3.exists()
-
+v3_available = (not _USING_MOCK) and _NOISY_V3.exists() and _CLEAN_V3.exists()
 
 model_options = ["V1 (bazni model)"]
 if v3_available:
@@ -330,7 +335,10 @@ metric_choice = st.sidebar.radio(
 metric_label, y_range = METRIC_META[metric_choice]
 
 
-if model_choice == "V1 (bazni model)":
+if _USING_MOCK:
+    _render_single(_mock_noisy, _mock_clean, metric_choice, metric_label, y_range, "(demo)")
+
+elif model_choice == "V1 (bazni model)":
     noisy, clean = _load(str(_NOISY_V1), str(_CLEAN_V1))
     _render_single(noisy, clean, metric_choice, metric_label, y_range, "(V1)")
 

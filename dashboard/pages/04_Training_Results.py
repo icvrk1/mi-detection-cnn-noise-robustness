@@ -54,13 +54,20 @@ def _confusion_fig(tp: int, tn: int, fp: int, fn: int, title: str):
     return fig
 
 
-def _render_model_tab(hist_path: Path, eval_path: Path, model_name: str) -> None:
+def _render_model_tab(
+    hist_path: Path | None,
+    eval_path: Path | None,
+    model_name: str,
+    preloaded: tuple[dict, dict] | None = None,
+) -> None:
 
-    if not hist_path.exists() or not eval_path.exists():
+    if preloaded is not None:
+        history, full = preloaded
+    elif hist_path is None or not hist_path.exists() or eval_path is None or not eval_path.exists():
         st.warning(f"Fajlovi za {model_name} nisu pronadjeni.")
         return
-
-    history, full = _load(str(hist_path), str(eval_path))
+    else:
+        history, full = _load(str(hist_path), str(eval_path))
     metrics  = full["metrics"]
     cm_dict  = full["confusion_matrix"]
     n_epochs = len(history["train_loss"])
@@ -169,9 +176,15 @@ if v3_available:
         )
 else:
     if not _HIST_V1.exists() or not _EVAL_V1.exists():
-        st.error("Nedostaju izlazni fajlovi. Pokrenite skripte 02 i 03.")
-        st.stop()
-    _render_model_tab(_HIST_V1, _EVAL_V1, "V1 - bazni model")
+        st.info(
+            "Demo rezim: fajlovi treninga nisu dostupni. "
+            "Prikazuju se simulirani rezultati za demonstraciju."
+        )
+        from mock_data import get_mock_training_history, get_mock_clean_eval
+        _render_model_tab(None, None, "V1 - bazni model (demo)",
+                          preloaded=(get_mock_training_history(), get_mock_clean_eval()))
+    else:
+        _render_model_tab(_HIST_V1, _EVAL_V1, "V1 - bazni model")
     st.info(
         "Validacijska kriva gubitka prati trening krivu bez znakova prekomjernog "
         "prilagodjivanja, sto potvrdjuje dobru generalnost modela na nevidjenim podacima."

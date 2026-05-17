@@ -66,10 +66,14 @@ st.markdown(
 )
 
 if not _DATA_PATH.exists():
-    st.error(f"Podaci nisu pronadjeni: {_DATA_PATH}")
-    st.stop()
-
-signals, labels = _load_signals()
+    st.info(
+        "Demo rezim: stvarni PTB-XL podaci nisu dostupni. "
+        "Prikazuju se sinteticki signali za demonstraciju."
+    )
+    from mock_data import get_mock_signals_12ch
+    signals, labels = get_mock_signals_12ch()
+else:
+    signals, labels = _load_signals()
 
 
 v3_available  = _MODEL_V3_PATH.exists()
