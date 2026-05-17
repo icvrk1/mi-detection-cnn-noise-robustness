@@ -1,0 +1,41 @@
+seed: 42
+
+paths:
+  raw: data/raw
+  processed: data/processed
+  noisy: data/noisy
+  models: outputs/models
+  figures: outputs/figures
+  reports: outputs/reports
+  tables: outputs/tables
+
+preprocessing:
+  sampling_rate: 100
+  segment_length: 1000
+  leads: all   # all 12 leads for real PTB-XL data
+  bandpass_low: 0.5
+  bandpass_high: 40.0
+
+model:
+  in_channels: 12
+  num_filters: [32, 64, 128]
+  kernel_size: 7
+  dropout: 0.3
+  num_classes: 1
+
+training:
+  batch_size: 64
+  lr: 1.0e-3
+  max_epochs: 50
+  early_stopping_patience: 7
+  val_split: 0.15
+  test_split: 0.15
+
+noise:
+  types:
+    - gaussian
+    - baseline_wander
+    - powerline
+    - muscle_artifact
+    - electrode_motion
+  snr_db: [-6, 0, 6, 12, 18, 24]

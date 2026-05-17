@@ -1,0 +1,24 @@
+{
+  "total_raw": 21799,
+  "mi": 5468,
+  "norm": 9069,
+  "excluded": 7262,
+  "valid_total": 14537,
+  "splits": {
+    "train": {
+      "n": 11621,
+      "mi": 4378,
+      "norm": 7243
+    },
+    "val": {
+      "n": 1454,
+      "mi": 540,
+      "norm": 914
+    },
+    "test_clean": {
+      "n": 1462,
+      "mi": 550,
+      "norm": 912
+    }
+  }
+}

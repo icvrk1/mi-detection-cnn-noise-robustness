@@ -1,0 +1,22 @@
+{
+  "metrics": {
+    "accuracy": 0.9145,
+    "precision": 0.9242,
+    "recall": 0.8418,
+    "specificity": 0.9583,
+    "f1": 0.8811,
+    "auc_roc": 0.9675,
+    "auc_pr": 0.957
+  },
+  "confusion_matrix": {
+    "tp": 463,
+    "tn": 874,
+    "fp": 38,
+    "fn": 87
+  },
+  "n_samples": 1462,
+  "n_positive": 550,
+  "n_negative": 912,
+  "model_path": "outputs\\models\\baseline_best_v2.pt",
+  "evaluation_timestamp": "2026-04-27T21:54:58.154195"
+}

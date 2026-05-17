@@ -1,0 +1,36 @@
+Uredaj: cpu
+Ucitavanje train/val skupova ...
+  Train: torch.Size([11621, 12, 1000])  (MI=4378, NORM=7243)
+  Val  : torch.Size([1454, 12, 1000])  (MI=540, NORM=914)
+  pos_weight: 1.654  (NORM=7243, MI=4378)
+  Parametri modela: 239,137
+  Arhitektura spr. -> outputs\reports\model_architecture.txt
+
+Pocetak treninga (50 epoha, patience=7)
+---------------------------------------------------------------------------
+Ep   1/50 | train: L=0.3404 A=0.892 F1=0.859 | val: L=0.4653 A=0.895 F1=0.841 | lr=1.00e-03 (24s) *
+Ep   2/50 | train: L=0.2882 A=0.907 F1=0.878 | val: L=0.2736 A=0.915 F1=0.885 | lr=1.00e-03 (24s) *
+Ep   3/50 | train: L=0.2598 A=0.917 F1=0.891 | val: L=0.2956 A=0.916 F1=0.881 | lr=1.00e-03 (24s)
+Ep   4/50 | train: L=0.2511 A=0.917 F1=0.890 | val: L=0.3000 A=0.883 F1=0.857 | lr=1.00e-03 (25s)
+Ep   5/50 | train: L=0.2452 A=0.922 F1=0.898 | val: L=0.2919 A=0.917 F1=0.881 | lr=1.00e-03 (24s)
+Ep   6/50 | train: L=0.2291 A=0.925 F1=0.901 | val: L=0.2709 A=0.900 F1=0.872 | lr=1.00e-03 (24s) *
+Ep   7/50 | train: L=0.2225 A=0.928 F1=0.906 | val: L=0.2705 A=0.920 F1=0.890 | lr=1.00e-03 (25s) *
+Ep   8/50 | train: L=0.2177 A=0.929 F1=0.907 | val: L=0.4223 A=0.913 F1=0.870 | lr=1.00e-03 (24s)
+Ep   9/50 | train: L=0.2101 A=0.933 F1=0.913 | val: L=0.3239 A=0.874 F1=0.851 | lr=1.00e-03 (24s)
+Ep  10/50 | train: L=0.2031 A=0.934 F1=0.913 | val: L=0.2457 A=0.924 F1=0.899 | lr=1.00e-03 (24s) *
+Ep  11/50 | train: L=0.1986 A=0.935 F1=0.914 | val: L=0.2478 A=0.924 F1=0.898 | lr=1.00e-03 (28s)
+Ep  12/50 | train: L=0.1926 A=0.936 F1=0.916 | val: L=0.3094 A=0.920 F1=0.885 | lr=1.00e-03 (27s)
+Ep  13/50 | train: L=0.1906 A=0.937 F1=0.918 | val: L=0.3032 A=0.923 F1=0.889 | lr=1.00e-03 (25s)
+Ep  14/50 | train: L=0.1820 A=0.941 F1=0.922 | val: L=0.2718 A=0.921 F1=0.892 | lr=1.00e-03 (24s)
+Ep  15/50 | train: L=0.1557 A=0.949 F1=0.933 | val: L=0.2544 A=0.926 F1=0.901 | lr=5.00e-04 (24s)
+Ep  16/50 | train: L=0.1445 A=0.953 F1=0.939 | val: L=0.2918 A=0.925 F1=0.895 | lr=5.00e-04 (24s)
+Ep  17/50 | train: L=0.1412 A=0.954 F1=0.940 | val: L=0.2766 A=0.924 F1=0.895 | lr=5.00e-04 (24s)
+  Rano zaustavljanje na epohi 17 (najbolja epoha: 10)
+
+Trening zavrsen za 419.8s (7.0 min)
+  Najbolja epoha    : 10
+  Najbolji val loss : 0.2457
+  Najbolji val F1   : 0.9012
+  Model spremen    -> outputs\models\best_model.pt
+  Historija spr.   -> outputs\logs\training_history.json
+  Krivulje spr.    -> outputs\figures\training_curves.png

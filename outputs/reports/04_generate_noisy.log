@@ -1,0 +1,42 @@
+Ucitavanje cistog test skupa ...
+  Test: (1462, 12, 1000)  (N=1462)
+
+Generisanje 30 kombinacija ...
+  test_gaussian_snr-06.npz: (1462, 12, 1000)  (3.1s)
+  test_gaussian_snr+00.npz: (1462, 12, 1000)  (3.4s)
+  test_gaussian_snr+06.npz: (1462, 12, 1000)  (3.3s)
+  test_gaussian_snr+12.npz: (1462, 12, 1000)  (3.5s)
+  test_gaussian_snr+18.npz: (1462, 12, 1000)  (3.4s)
+  test_gaussian_snr+24.npz: (1462, 12, 1000)  (3.4s)
+  test_baseline_wander_snr-06.npz: (1462, 12, 1000)  (3.4s)
+  test_baseline_wander_snr+00.npz: (1462, 12, 1000)  (3.4s)
+  test_baseline_wander_snr+06.npz: (1462, 12, 1000)  (3.6s)
+  test_baseline_wander_snr+12.npz: (1462, 12, 1000)  (3.4s)
+  test_baseline_wander_snr+18.npz: (1462, 12, 1000)  (3.1s)
+  test_baseline_wander_snr+24.npz: (1462, 12, 1000)  (3.2s)
+  test_powerline_snr-06.npz: (1462, 12, 1000)  (3.4s)
+  test_powerline_snr+00.npz: (1462, 12, 1000)  (3.6s)
+  test_powerline_snr+06.npz: (1462, 12, 1000)  (3.4s)
+  test_powerline_snr+12.npz: (1462, 12, 1000)  (3.5s)
+  test_powerline_snr+18.npz: (1462, 12, 1000)  (3.3s)
+  test_powerline_snr+24.npz: (1462, 12, 1000)  (3.3s)
+  test_muscle_artifact_snr-06.npz: (1462, 12, 1000)  (3.6s)
+  test_muscle_artifact_snr+00.npz: (1462, 12, 1000)  (3.0s)
+  test_muscle_artifact_snr+06.npz: (1462, 12, 1000)  (3.1s)
+  test_muscle_artifact_snr+12.npz: (1462, 12, 1000)  (3.2s)
+  test_muscle_artifact_snr+18.npz: (1462, 12, 1000)  (3.1s)
+  test_muscle_artifact_snr+24.npz: (1462, 12, 1000)  (3.1s)
+  test_electrode_motion_snr-06.npz: (1462, 12, 1000)  (3.2s)
+  test_electrode_motion_snr+00.npz: (1462, 12, 1000)  (3.4s)
+  test_electrode_motion_snr+06.npz: (1462, 12, 1000)  (3.2s)
+  test_electrode_motion_snr+12.npz: (1462, 12, 1000)  (3.2s)
+  test_electrode_motion_snr+18.npz: (1462, 12, 1000)  (3.1s)
+  test_electrode_motion_snr+24.npz: (1462, 12, 1000)  (3.2s)
+
+Sanity check SNR-a (3 kombinacije) ...
+  [OK] powerline            @ +12 dB: izmjeren=12.00 dB, odstupanje=0.000 dB
+  [OK] muscle_artifact      @  -6 dB: izmjeren=-6.00 dB, odstupanje=0.000 dB
+  [OK] muscle_artifact      @ +24 dB: izmjeren=24.00 dB, odstupanje=0.000 dB
+
+Zavrseno za 108.8s
+NPZ fajlovi u: data\noisy

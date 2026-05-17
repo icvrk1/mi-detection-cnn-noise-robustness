@@ -1,0 +1,30 @@
+# Podaci i generisani izlazi
+data/
+outputs/models/
+outputs/figures/
+outputs/logs/
+outputs/tables/
+thesis/
+
+# Virtualno okruzenje
+.venv/
+
+# Python kesirani fajlovi
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# Model i array artifakti
+*.pt
+*.npz
+
+# Alati za razvoj (lokalna konfiguracija)
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db

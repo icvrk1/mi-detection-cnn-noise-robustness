@@ -1,0 +1,23 @@
+{
+  "metrics": {
+    "accuracy": 0.9152,
+    "precision": 0.8831,
+    "recall": 0.8927,
+    "specificity": 0.9287,
+    "f1": 0.8879,
+    "auc_roc": 0.9718,
+    "auc_pr": 0.9622
+  },
+  "confusion_matrix": {
+    "tp": 491,
+    "tn": 847,
+    "fp": 65,
+    "fn": 59
+  },
+  "threshold": 0.51,
+  "n_samples": 1462,
+  "n_positive": 550,
+  "n_negative": 912,
+  "model_path": "outputs\\models\\best_model_v3.pt",
+  "evaluation_timestamp": "2026-05-02T02:00:19.630691"
+}
