@@ -132,7 +132,7 @@ except Exception as e:
 
 
 # Informacije o šumu i osnovne metrike signala
-st.info(f"**{noise_label}** — {NOISE_DESCRIPTIONS[noise_type]}")
+st.info(f"**{noise_label}** - {NOISE_DESCRIPTIONS[noise_type]}")
 
 noise_only = noisy_1d - signal_1d
 
