@@ -13,7 +13,6 @@ import streamlit as st
 import torch
 
 from ekg_mi.models.baseline_cnn import BaselineCNN
-from ekg_mi.noise.injection import add_noise
 from components.charts import (
     COLORS,
     LEAD_NAMES,
@@ -22,12 +21,16 @@ from components.charts import (
     page_footer,
     plot_ecg_signal,
 )
-from utils.download_assets import ensure_test_data, ensure_model_v1, ensure_model_v3
+from utils.download_assets import (
+    ensure_test_data,
+    ensure_model_v1,
+    ensure_model_v3,
+    ensure_noisy_test_data,
+)
 
 
 FS = 100
 
-# Koriste se uvijek BEST modeli
 _MODEL_V1_PATH = _ROOT / "outputs" / "models" / "best_model.pt"
 _MODEL_V3_PATH = _ROOT / "outputs" / "models" / "best_model_v3.pt"
 _DATA_PATH = _ROOT / "data" / "processed" / "test_clean.npz"
@@ -57,7 +60,11 @@ def _load_model(path: str) -> tuple[BaselineCNN, bool]:
         model.eval()
         return model, False
 
-    state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
+    try:
+        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
+    except TypeError:
+        state_dict = torch.load(model_path, map_location="cpu")
+
     model.load_state_dict(state_dict)
     model.eval()
 
@@ -94,11 +101,15 @@ st.markdown(
 try:
     ensure_test_data()
     ensure_model_v1()
-    ensure_model_v3()
 except Exception as e:
-    st.error("Nije moguće preuzeti test podatke ili modele iz GitHub Release-a.")
+    st.error("Nije moguće preuzeti test podatke ili V1 model iz GitHub Release-a.")
     st.exception(e)
     st.stop()
+
+try:
+    ensure_model_v3()
+except Exception:
+    pass
 
 
 if not _DATA_PATH.exists():
@@ -153,7 +164,6 @@ odvod_idx = st.sidebar.selectbox(
 )
 
 
-
 model_path = _MODEL_V3_PATH if "V3" in model_choice else _MODEL_V1_PATH
 model, loaded = _load_model(str(model_path))
 threshold = DEFAULT_THR.get(model_choice, 0.5)
@@ -167,7 +177,6 @@ else:
     )
 
 
-
 noise_type = {v: k for k, v in NOISE_LABELS.items()}[noise_label]
 
 signal_12ch = signals[signal_idx].copy()
@@ -175,19 +184,26 @@ true_label = int(labels[signal_idx])
 odvod_ime = LEAD_NAMES[odvod_idx]
 
 if add_noise_flag:
-    for ch in range(12):
-        signal_12ch[ch] = add_noise(
-            signal_12ch[ch],
-            noise_type=noise_type,
-            snr_db=float(snr_db),
+    try:
+        noisy_path = ensure_noisy_test_data(noise_type, snr_db)
+        noisy_signals, noisy_labels = _load_signals(str(noisy_path))
+
+        signal_12ch = noisy_signals[signal_idx].copy()
+        true_label = int(noisy_labels[signal_idx])
+
+    except Exception as e:
+        st.error(
+            "Nije moguće preuzeti ili učitati zašumljeni test skup. "
+            "Provjeri da li je release v1.0-noisy-data objavljen i da li sadrži traženi .npz fajl."
         )
+        st.exception(e)
+        st.stop()
 
     signal_title = f"Signal {signal_idx + 1} + {noise_label} | SNR = {snr_db} dB"
     sig_color = COLORS["warn"]
 else:
     signal_title = f"Signal {signal_idx + 1} - {CLASS_NAMES[true_label]}"
     sig_color = CLASS_COLORS[true_label]
-
 
 
 fig = plot_ecg_signal(
