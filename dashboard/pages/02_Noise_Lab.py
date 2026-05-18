@@ -228,7 +228,7 @@ if show_all_snr:
             st.exception(e)
 
     fig_multi.update_layout(
-        title=f"Poređenje svih SNR nivoa — {noise_label}",
+        title=f"Poređenje svih SNR nivoa - {noise_label}",
         xaxis_title="Vrijeme (s)",
         yaxis_title="Amplituda (mV)",
         height=420,

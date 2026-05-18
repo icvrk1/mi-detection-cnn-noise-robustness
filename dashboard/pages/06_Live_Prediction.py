@@ -121,7 +121,7 @@ if not _MODEL_V1_PATH.exists():
     st.stop()
 
 if not _MODEL_V3_PATH.exists():
-    st.warning("V3 best model nije pronađen. Biće dostupan samo V1 model.")
+    st.warning("V3 best model nije pronađen. Bit će dostupan samo V1 model.")
 
 
 signals, labels = _load_signals(str(_DATA_PATH))
