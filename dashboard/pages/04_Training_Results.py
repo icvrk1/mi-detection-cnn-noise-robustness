@@ -156,7 +156,17 @@ st.markdown(
     "metrike na cistom test skupu za oba modela."
 )
 
+# Download both V1 and V3 training files up front so v3_available is accurate
+if not _HIST_V1.exists() or not _EVAL_V1.exists():
+    try:
+        from utils.download_assets import ensure_training_results
+        ensure_training_results()
+    except Exception as e:
+        st.error("Preuzimanje rezultata treninga sa GitHub Release-a nije uspjelo.")
+        st.exception(e)
+
 v3_available = _HIST_V3.exists() and _EVAL_V3.exists()
+v1_available = _HIST_V1.exists() and _EVAL_V1.exists()
 
 if v3_available:
     tab1, tab2 = st.tabs(["V1 - Bazni model", "V3 - Augmentirani model"])
@@ -174,24 +184,20 @@ if v3_available:
             "Trening konvergira neznatno sporije, ali postize bolju osjetljivost "
             "(recall) na cistom test skupu, sto je kljucno za detekciju MI."
         )
+elif v1_available:
+    _render_model_tab(_HIST_V1, _EVAL_V1, "V1 - bazni model")
+    st.info(
+        "Validacijska kriva gubitka prati trening krivu bez znakova prekomjernog "
+        "prilagodjivanja, sto potvrdjuje dobru generalnost modela na nevidjenim podacima."
+    )
 else:
-    if not _HIST_V1.exists() or not _EVAL_V1.exists():
-        try:
-            from utils.download_assets import ensure_training_results
-            ensure_training_results()
-        except Exception:
-            pass
-
-    if not _HIST_V1.exists() or not _EVAL_V1.exists():
-        st.info(
-            "Demo rezim: fajlovi treninga nisu dostupni. "
-            "Prikazuju se simulirani rezultati za demonstraciju."
-        )
-        from mock_data import get_mock_training_history, get_mock_clean_eval
-        _render_model_tab(None, None, "V1 - bazni model (demo)",
-                          preloaded=(get_mock_training_history(), get_mock_clean_eval()))
-    else:
-        _render_model_tab(_HIST_V1, _EVAL_V1, "V1 - bazni model")
+    st.info(
+        "Demo rezim: fajlovi treninga nisu dostupni. "
+        "Prikazuju se simulirani rezultati za demonstraciju."
+    )
+    from mock_data import get_mock_training_history, get_mock_clean_eval
+    _render_model_tab(None, None, "V1 - bazni model (demo)",
+                      preloaded=(get_mock_training_history(), get_mock_clean_eval()))
     st.info(
         "Validacijska kriva gubitka prati trening krivu bez znakova prekomjernog "
         "prilagodjivanja, sto potvrdjuje dobru generalnost modela na nevidjenim podacima."

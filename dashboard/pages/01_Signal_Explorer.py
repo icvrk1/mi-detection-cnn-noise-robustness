@@ -90,8 +90,9 @@ if not _DATA_PATH.exists():
     try:
         from utils.download_assets import ensure_test_data
         ensure_test_data()
-    except Exception:
-        pass
+    except Exception as e:
+        st.error("Preuzimanje test skupa sa GitHub Release-a nije uspjelo.")
+        st.exception(e)
 
 if not _DATA_PATH.exists():
     st.info(

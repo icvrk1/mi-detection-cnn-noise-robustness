@@ -134,7 +134,7 @@ Skripte se pokrecu redom. Svaki script cita `configs/config.yaml` za putanje i h
 | `08_generate_comparison_figures.py`| V1 vs V3 poredenje(grafovi)                            |
 | `09_sync_thesis_assets.py`         | Kopiranje grafova i tabela u folder teze              |
 
-Poredba V1 i V3:
+Poređenje V1 i V3:
 
 ```bash
 python scripts/compare_v1_v3.py
@@ -157,7 +157,7 @@ Dashboard sadrži šest stranica:
 6. **Live predikcija** - Interaktivna klasifikacija EKG signala
 
 
-Finalni model teze: `outputs/models/best_model.pt` (V1, prag 0.5).
+Finalni model teze: `outputs/models/best_model.pt` (V1).
 Glavni izvještaji: `outputs/reports/eval_clean.json`, `outputs/reports/eval_noisy.json`.
 
 

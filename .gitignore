@@ -3,6 +3,9 @@ data/raw
 data/noisy
 data/processed/*
 !data/processed/test_clean.npz
+data/processed/*.npz
+outputs/models/*.pt
+outputs/models/*.pth
 outputs/models/
 outputs/figures/
 outputs/logs/

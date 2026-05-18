@@ -313,8 +313,9 @@ if not _NOISY_V1.exists():
     try:
         from utils.download_assets import ensure_noisy_results
         ensure_noisy_results()
-    except Exception:
-        pass
+    except Exception as e:
+        st.error("Preuzimanje rezultata evaluacije robustnosti nije uspjelo.")
+        st.exception(e)
 
 _USING_MOCK = not _NOISY_V1.exists()
 if _USING_MOCK:

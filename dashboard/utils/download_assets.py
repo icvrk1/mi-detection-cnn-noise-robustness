@@ -1,4 +1,4 @@
-# dashboard/utils/data_loader.py
+# dashboard/utils/download_assets.py
 
 from pathlib import Path
 import urllib.request
@@ -7,6 +7,7 @@ import streamlit as st
 _ROOT = Path(__file__).resolve().parents[2]
 
 DATA_DIR = _ROOT / "data" / "processed"
+NOISY_DIR = _ROOT / "data" / "noisy"
 MODEL_DIR = _ROOT / "outputs" / "models"
 LOG_DIR = _ROOT / "outputs" / "logs"
 REPORT_DIR = _ROOT / "outputs" / "reports"
@@ -15,6 +16,33 @@ BASE_URL = (
     "https://github.com/icvrk1/mi-detection-cnn-noise-robustness"
     "/releases/download/v1.0-assets"
 )
+
+NOISY_BASE_URL = (
+    "https://github.com/icvrk1/mi-detection-cnn-noise-robustness"
+    "/releases/download/v1.0-noisy-data"
+)
+
+NOISE_TYPES = [
+    "gaussian",
+    "baseline_wander",
+    "muscle_artifact",
+    "electrode_motion",
+    "powerline",
+]
+
+SNR_VALUES = [-6, 0, 6, 12, 18, 24]
+
+
+def _snr_to_tag(snr_db: int | float | str) -> str:
+    snr = int(float(snr_db))
+    if snr < 0:
+        return f"-{abs(snr):02d}"
+    return f"+{snr:02d}"
+
+
+def _noisy_filename(noise_type: str, snr_db: int | float | str) -> str:
+    return f"test_{noise_type}_snr{_snr_to_tag(snr_db)}.npz"
+
 
 ASSETS = {
     # Data
@@ -61,7 +89,7 @@ ASSETS = {
         "url": f"{BASE_URL}/eval_clean_v3.json",
     },
 
-    # Noisy evaluacija
+    # Noisy evaluacija, samo metrike
     "eval_noisy_v1": {
         "path": REPORT_DIR / "eval_noisy.json",
         "url": f"{BASE_URL}/eval_noisy.json",
@@ -71,6 +99,17 @@ ASSETS = {
         "url": f"{BASE_URL}/eval_noisy_v3.json",
     },
 }
+
+
+# Dodavanje 30 noisy .npz fajlova u ASSETS
+for noise_type in NOISE_TYPES:
+    for snr in SNR_VALUES:
+        filename = _noisy_filename(noise_type, snr)
+        key = f"noisy_{noise_type}_snr{_snr_to_tag(snr)}"
+        ASSETS[key] = {
+            "path": NOISY_DIR / filename,
+            "url": f"{NOISY_BASE_URL}/{filename}",
+        }
 
 
 def _download_file(url: str, path: Path) -> Path:
@@ -133,9 +172,28 @@ def ensure_model_v3() -> str:
         return ensure_asset("model_v3")
 
 
+def ensure_noisy_test_data(noise_type: str, snr_db: int | float | str) -> str:
+    """
+    Preuzima tačno jednu noisy test varijantu, npr.
+    test_gaussian_snr+06.npz.
+    """
+    if noise_type not in NOISE_TYPES:
+        raise ValueError(f"Nepoznat tip šuma: {noise_type}")
+
+    snr = int(float(snr_db))
+    if snr not in SNR_VALUES:
+        raise ValueError(f"Nepoznata SNR vrijednost: {snr_db}")
+
+    key = f"noisy_{noise_type}_snr{_snr_to_tag(snr)}"
+
+    with st.spinner(f"Preuzimanje noisy test skupa: {noise_type}, SNR={snr} dB..."):
+        return ensure_asset(key)
+
+
 def ensure_live_prediction_assets() -> dict:
     """
     Preuzima fajlove potrebne za Live Prediction stranicu.
+    Ne preuzima noisy .npz jer Live Prediction može dodati šum dinamički.
     """
     return {
         "test": ensure_test_data(),
@@ -146,7 +204,7 @@ def ensure_live_prediction_assets() -> dict:
 
 def ensure_training_results() -> dict:
     """
-    Preuzima fajlove potrebne za stranicu Training Results.
+    Preuzima fajlove potrebne za Training Results stranicu.
     """
     with st.spinner("Preuzimanje rezultata treninga..."):
         return {
@@ -159,7 +217,8 @@ def ensure_training_results() -> dict:
 
 def ensure_noisy_results() -> dict:
     """
-    Preuzima fajlove potrebne za stranicu Robustness.
+    Preuzima JSON rezultate evaluacije robustnosti.
+    Ovo ne skida 30 noisy .npz fajlova.
     """
     with st.spinner("Preuzimanje rezultata evaluacije robustnosti..."):
         return {
@@ -173,7 +232,7 @@ def ensure_noisy_results() -> dict:
 def ensure_dashboard_assets() -> dict:
     """
     Preuzima najvažnije fajlove za dashboard.
-    Ne preuzima train.npz jer je velik i obično nije potreban za prikaz.
+    Ne preuzima train.npz ni svih 30 noisy .npz fajlova jer su veliki.
     """
     return {
         **ensure_live_prediction_assets(),
