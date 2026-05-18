@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import sys
@@ -16,100 +15,139 @@ import torch
 from ekg_mi.models.baseline_cnn import BaselineCNN
 from ekg_mi.noise.injection import add_noise
 from components.charts import (
-    COLORS, LEAD_NAMES, SNR_VALUES,
-    NOISE_LABELS, page_footer, plot_ecg_signal,
+    COLORS,
+    LEAD_NAMES,
+    SNR_VALUES,
+    NOISE_LABELS,
+    page_footer,
+    plot_ecg_signal,
 )
 
-FS             = 100
+# Download funkcije iz dashboard/utils/data_loader.py
+from utils.data_loader import ensure_test_data, ensure_model_v1, ensure_model_v3
+
+
+FS = 100
+
+# UVIJEK SE KORISTE BEST MODELI
 _MODEL_V1_PATH = _ROOT / "outputs" / "models" / "best_model.pt"
 _MODEL_V3_PATH = _ROOT / "outputs" / "models" / "best_model_v3.pt"
-_DATA_PATH     = _ROOT / "data"    / "processed" / "test_clean.npz"
-CLASS_NAMES    = {0: "Normalan (NORM)", 1: "Infarkt miokarda (MI)"}
-CLASS_COLORS   = {0: COLORS["norm"],   1: COLORS["mi"]}
-DEFAULT_THR    = {
-    "V1 (bazni model)":        0.5,
+_DATA_PATH = _ROOT / "data" / "processed" / "test_clean.npz"
+
+CLASS_NAMES = {
+    0: "Normalan (NORM)",
+    1: "Infarkt miokarda (MI)",
+}
+
+CLASS_COLORS = {
+    0: COLORS["norm"],
+    1: COLORS["mi"],
+}
+
+DEFAULT_THR = {
+    "V1 (bazni model)": 0.5,
     "V3 (augmentirani model)": 0.51,
 }
 
 
-@st.cache_resource
-def _load_model(path: Path) -> tuple[BaselineCNN, bool]:
-    model  = BaselineCNN(num_channels=12)
-    loaded = False
-    if path.exists():
-        model.load_state_dict(torch.load(path, map_location="cpu", weights_only=True))
-        loaded = True
+@st.cache_resource(show_spinner=False)
+def _load_model(path: str) -> tuple[BaselineCNN, bool]:
+    model = BaselineCNN(num_channels=12)
+    model_path = Path(path)
+
+    if not model_path.exists():
+        model.eval()
+        return model, False
+
+    state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
+    model.load_state_dict(state_dict)
     model.eval()
-    return model, loaded
+
+    return model, True
 
 
 @st.cache_data(show_spinner=False)
-def _load_signals() -> tuple[np.ndarray, np.ndarray]:
-    data = np.load(_DATA_PATH)
+def _load_signals(path: str) -> tuple[np.ndarray, np.ndarray]:
+    data = np.load(path)
     return data["signals"], data["labels"]
 
 
-def _predict(model: BaselineCNN, signal_12ch: np.ndarray,
-             threshold: float) -> tuple[int, float]:
+def _predict(
+    model: BaselineCNN,
+    signal_12ch: np.ndarray,
+    threshold: float,
+) -> tuple[int, float]:
+    tensor = torch.from_numpy(signal_12ch).float().unsqueeze(0)
 
-    tensor  = torch.from_numpy(signal_12ch).float().unsqueeze(0)
     with torch.no_grad():
         prob_mi = float(torch.sigmoid(model(tensor).squeeze()).item())
-    return int(prob_mi >= threshold), prob_mi
+
+    pred = int(prob_mi >= threshold)
+    return pred, prob_mi
 
 
-
+# --- Page header ---
 st.title("Live predikcija")
 st.markdown(
-    "Odaberite EKG snimak iz stvarnog test skupa, opcijsku vrstu suma, "
-    "i pokrenite klasifikaciju. Model vraca vjerovatnocu infarkta miokarda."
+    "Odaberite EKG snimak iz stvarnog test skupa, opcijsku vrstu šuma "
+    "i pokrenite klasifikaciju. Model vraća vjerovatnoću infarkta miokarda."
 )
 
+# --- Ensure required files exist ---
+try:
+    test_path = ensure_test_data()
+    model_v1_path = ensure_model_v1()
+    model_v3_path = ensure_model_v3()
+except Exception as e:
+    st.error("Nije moguće preuzeti test podatke ili modele iz GitHub Release-a.")
+    st.exception(e)
+    st.stop()
+
+# Provjera da li su fajlovi stvarno dostupni nakon downloada
 if not _DATA_PATH.exists():
-    try:
-        from utils.download_assets import ensure_test_data, ensure_model_v1, ensure_model_v3
-        ensure_test_data()
-        ensure_model_v1()
-        if _MODEL_V3_PATH.parent.exists():
-            try:
-                ensure_model_v3()
-            except Exception:
-                pass
-    except Exception:
-        pass
+    st.error(f"Test skup nije pronađen na putanji: {_DATA_PATH}")
+    st.stop()
 
-if not _DATA_PATH.exists():
-    st.info(
-        "Demo rezim: stvarni PTB-XL podaci nisu dostupni. "
-        "Prikazuju se sinteticki signali za demonstraciju."
-    )
-    from mock_data import get_mock_signals_12ch
-    signals, labels = get_mock_signals_12ch()
-else:
-    signals, labels = _load_signals()
+if not _MODEL_V1_PATH.exists():
+    st.error(f"V1 best model nije pronađen na putanji: {_MODEL_V1_PATH}")
+    st.stop()
+
+# V3 može biti opcionalan, ali ako postoji, prikazujemo ga
+v3_available = _MODEL_V3_PATH.exists()
+
+signals, labels = _load_signals(str(_DATA_PATH))
 
 
-v3_available  = _MODEL_V3_PATH.exists()
+# --- Sidebar ---
+st.sidebar.header("Podešavanja")
+
 model_options = ["V1 (bazni model)"]
 if v3_available:
     model_options.append("V3 (augmentirani model)")
 
-st.sidebar.header("Podesavanja")
 model_choice = st.sidebar.radio("Verzija modela", model_options)
-signal_idx   = st.sidebar.selectbox(
+
+signal_idx = st.sidebar.selectbox(
     "Signal",
     options=list(range(len(labels))),
-    format_func=lambda i: f"Signal {i+1} - {CLASS_NAMES[int(labels[i])]}",
+    format_func=lambda i: f"Signal {i + 1} - {CLASS_NAMES[int(labels[i])]}",
 )
-add_noise_flag = st.sidebar.checkbox("Dodaj sum", value=False)
-noise_label    = st.sidebar.selectbox(
-    "Vrsta suma", list(NOISE_LABELS.values()),
+
+add_noise_flag = st.sidebar.checkbox("Dodaj šum", value=False)
+
+noise_label = st.sidebar.selectbox(
+    "Vrsta šuma",
+    list(NOISE_LABELS.values()),
     disabled=not add_noise_flag,
 )
+
 snr_db = st.sidebar.select_slider(
-    "SNR (dB)", options=SNR_VALUES, value=6,
+    "SNR (dB)",
+    options=SNR_VALUES,
+    value=6,
     disabled=not add_noise_flag,
 )
+
 odvod_idx = st.sidebar.selectbox(
     "Prikazani odvod",
     options=list(range(12)),
@@ -118,38 +156,50 @@ odvod_idx = st.sidebar.selectbox(
 )
 
 
-model_path   = _MODEL_V3_PATH if "V3" in model_choice else _MODEL_V1_PATH
-model, loaded = _load_model(model_path)
-threshold    = DEFAULT_THR.get(model_choice, 0.5)
+# --- Load selected model ---
+model_path = _MODEL_V3_PATH if "V3" in model_choice else _MODEL_V1_PATH
+model, loaded = _load_model(str(model_path))
+threshold = DEFAULT_THR.get(model_choice, 0.5)
 
 if loaded:
-    st.success(f"Model {model_choice} ucitan (prag klasifikacije = {threshold}).")
+    st.success(f"Model {model_choice} učitan. Prag klasifikacije = {threshold}.")
 else:
-    st.warning(f"Tezine modela {model_choice} nisu pronadjene - koriste se nasumicne tezine.")
+    st.warning(
+        f"Težine modela {model_choice} nisu pronađene. "
+        "Koriste se nasumične težine, pa predikcija nije validna."
+    )
 
 
-noise_type  = {v: k for k, v in NOISE_LABELS.items()}[noise_label]
+# --- Prepare signal ---
+noise_type = {v: k for k, v in NOISE_LABELS.items()}[noise_label]
+
 signal_12ch = signals[signal_idx].copy()
-true_label  = int(labels[signal_idx])
-odvod_ime   = LEAD_NAMES[odvod_idx]
+true_label = int(labels[signal_idx])
+odvod_ime = LEAD_NAMES[odvod_idx]
 
 if add_noise_flag:
     for ch in range(12):
         signal_12ch[ch] = add_noise(
-            signal_12ch[ch], noise_type=noise_type, snr_db=float(snr_db)
+            signal_12ch[ch],
+            noise_type=noise_type,
+            snr_db=float(snr_db),
         )
-    signal_title = f"Signal {signal_idx+1} + {noise_label} | SNR = {snr_db} dB"
-    sig_color    = COLORS["warn"]
+
+    signal_title = f"Signal {signal_idx + 1} + {noise_label} | SNR = {snr_db} dB"
+    sig_color = COLORS["warn"]
 else:
-    signal_title = f"Signal {signal_idx+1} - {CLASS_NAMES[true_label]}"
-    sig_color    = CLASS_COLORS[true_label]
+    signal_title = f"Signal {signal_idx + 1} - {CLASS_NAMES[true_label]}"
+    sig_color = CLASS_COLORS[true_label]
 
 
+# --- Plot ECG signal ---
 fig = plot_ecg_signal(
-    signal_12ch[odvod_idx], fs=FS,
+    signal_12ch[odvod_idx],
+    fs=FS,
     title=f"{signal_title} | Odvod {odvod_ime}",
     color=sig_color,
 )
+
 fig.update_layout(height=300)
 st.plotly_chart(fig, use_container_width=True)
 
@@ -157,54 +207,63 @@ st.caption(
     f"Stvarna klasa signala: **{CLASS_NAMES[true_label]}** | "
     f"Model: {model_choice} | "
     f"Prag: {threshold}"
-    + (f" | Sum: {noise_label} pri {snr_db} dB" if add_noise_flag else "")
+    + (f" | Šum: {noise_label} pri {snr_db} dB" if add_noise_flag else "")
 )
 
 
+# --- Prediction ---
 if st.button("Pokreni klasifikaciju", type="primary", use_container_width=True):
     with st.spinner("Klasificiranje..."):
         pred, prob_mi = _predict(model, signal_12ch, threshold)
-        prob_norm     = 1.0 - prob_mi
+        prob_norm = 1.0 - prob_mi
 
     st.markdown("---")
 
-    
     res_col, bar_col = st.columns([1, 2])
 
     with res_col:
         st.markdown("#### Rezultat klasifikacije")
+
         pred_label = CLASS_NAMES[pred]
         pred_color = CLASS_COLORS[pred]
+
         st.markdown(
             f"<h2 style='color:{pred_color}; margin-bottom:4px;'>{pred_label}</h2>",
             unsafe_allow_html=True,
         )
-        correct = pred == true_label
-        if correct:
-            st.success("Tacna predikcija")
-        else:
-            st.error(f"Pogresna predikcija - stvarna klasa: **{CLASS_NAMES[true_label]}**")
 
-        
+        correct = pred == true_label
+
+        if correct:
+            st.success("Tačna predikcija")
+        else:
+            st.error(f"Pogrešna predikcija. Stvarna klasa: **{CLASS_NAMES[true_label]}**")
+
         confidence = max(prob_mi, prob_norm)
+
         if confidence >= 0.9:
             conf_label = "Visoko uvjerljiva predikcija"
         elif confidence >= 0.75:
-            conf_label = "Umjereno uvjerljiva"
+            conf_label = "Umjereno uvjerljiva predikcija"
         else:
-            conf_label = "Niska uvjerenost - granican slucaj"
+            conf_label = "Niska uvjerenost, graničan slučaj"
+
         st.caption(conf_label)
 
     with bar_col:
-        st.markdown("#### Vjerovatnoca klasa")
-        fig_bar = go.Figure(go.Bar(
-            x=["Normalan (NORM)", "Infarkt miokarda (MI)"],
-            y=[prob_norm, prob_mi],
-            marker_color=[COLORS["norm"], COLORS["mi"]],
-            text=[f"{prob_norm:.1%}", f"{prob_mi:.1%}"],
-            textposition="outside",
-            width=0.45,
-        ))
+        st.markdown("#### Vjerovatnoća klasa")
+
+        fig_bar = go.Figure(
+            go.Bar(
+                x=["Normalan (NORM)", "Infarkt miokarda (MI)"],
+                y=[prob_norm, prob_mi],
+                marker_color=[COLORS["norm"], COLORS["mi"]],
+                text=[f"{prob_norm:.1%}", f"{prob_mi:.1%}"],
+                textposition="outside",
+                width=0.45,
+            )
+        )
+
         fig_bar.update_layout(
             yaxis=dict(range=[0, 1.2], tickformat=".0%"),
             height=270,
@@ -214,27 +273,28 @@ if st.button("Pokreni klasifikaciju", type="primary", use_container_width=True):
             showlegend=False,
             margin=dict(l=20, r=20, t=20, b=40),
         )
+
         st.plotly_chart(fig_bar, use_container_width=True)
 
-  
     st.markdown("#### Detalji")
+
     d1, d2, d3, d4, d5 = st.columns(5)
-    d1.metric("Predikcija",    pred_label)
-    d2.metric("Model",         model_choice.split()[0])
-    d3.metric("Prag",          f"{threshold}")
-    d4.metric("P(NORM)",       f"{prob_norm:.4f}")
-    d5.metric("P(MI)",         f"{prob_mi:.4f}")
+
+    d1.metric("Predikcija", pred_label)
+    d2.metric("Model", model_choice.split()[0])
+    d3.metric("Prag", f"{threshold}")
+    d4.metric("P(NORM)", f"{prob_norm:.4f}")
+    d5.metric("P(MI)", f"{prob_mi:.4f}")
 
     if add_noise_flag and not correct:
         st.warning(
-            f"Pogresna predikcija pri {noise_label} SNR={snr_db} dB. "
-            "Pokusajte visi SNR nivo za cistiji signal ili odaberite model V3 "
-            "koji je robusniji na sum."
+            f"Pogrešna predikcija pri šumu '{noise_label}' i SNR={snr_db} dB. "
+            "Pokušajte viši SNR nivo za čišći signal ili odaberite V3 model."
         )
     elif add_noise_flag and correct:
         st.info(
-            f"Tacna predikcija cak i pri {noise_label} SNR={snr_db} dB. "
-            "Za detaljnu analizu robustnosti posjetite stranicu 'Analiza robustnosti'."
+            f"Tačna predikcija pri šumu '{noise_label}' i SNR={snr_db} dB. "
+            "Za detaljnu analizu pogledajte stranicu 'Robustness'."
         )
 
 page_footer()
