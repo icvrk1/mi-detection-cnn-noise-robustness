@@ -22,14 +22,12 @@ from components.charts import (
     page_footer,
     plot_ecg_signal,
 )
-
-# Download funkcije iz dashboard/utils/data_loader.py
-from utils.data_loader import ensure_test_data, ensure_model_v1, ensure_model_v3
+from utils.download_assets import ensure_test_data, ensure_model_v1, ensure_model_v3
 
 
 FS = 100
 
-# UVIJEK SE KORISTE BEST MODELI
+# Koriste se uvijek BEST modeli
 _MODEL_V1_PATH = _ROOT / "outputs" / "models" / "best_model.pt"
 _MODEL_V3_PATH = _ROOT / "outputs" / "models" / "best_model_v3.pt"
 _DATA_PATH = _ROOT / "data" / "processed" / "test_clean.npz"
@@ -86,43 +84,42 @@ def _predict(
     return pred, prob_mi
 
 
-# --- Page header ---
 st.title("Live predikcija")
 st.markdown(
     "Odaberite EKG snimak iz stvarnog test skupa, opcijsku vrstu šuma "
     "i pokrenite klasifikaciju. Model vraća vjerovatnoću infarkta miokarda."
 )
 
-# --- Ensure required files exist ---
+
 try:
-    test_path = ensure_test_data()
-    model_v1_path = ensure_model_v1()
-    model_v3_path = ensure_model_v3()
+    ensure_test_data()
+    ensure_model_v1()
+    ensure_model_v3()
 except Exception as e:
     st.error("Nije moguće preuzeti test podatke ili modele iz GitHub Release-a.")
     st.exception(e)
     st.stop()
 
-# Provjera da li su fajlovi stvarno dostupni nakon downloada
+
 if not _DATA_PATH.exists():
-    st.error(f"Test skup nije pronađen na putanji: {_DATA_PATH}")
+    st.error(f"Test skup nije pronađen: {_DATA_PATH}")
     st.stop()
 
 if not _MODEL_V1_PATH.exists():
-    st.error(f"V1 best model nije pronađen na putanji: {_MODEL_V1_PATH}")
+    st.error(f"V1 best model nije pronađen: {_MODEL_V1_PATH}")
     st.stop()
 
-# V3 može biti opcionalan, ali ako postoji, prikazujemo ga
-v3_available = _MODEL_V3_PATH.exists()
+if not _MODEL_V3_PATH.exists():
+    st.warning("V3 best model nije pronađen. Biće dostupan samo V1 model.")
+
 
 signals, labels = _load_signals(str(_DATA_PATH))
 
 
-# --- Sidebar ---
 st.sidebar.header("Podešavanja")
 
 model_options = ["V1 (bazni model)"]
-if v3_available:
+if _MODEL_V3_PATH.exists():
     model_options.append("V3 (augmentirani model)")
 
 model_choice = st.sidebar.radio("Verzija modela", model_options)
@@ -156,7 +153,7 @@ odvod_idx = st.sidebar.selectbox(
 )
 
 
-# --- Load selected model ---
+
 model_path = _MODEL_V3_PATH if "V3" in model_choice else _MODEL_V1_PATH
 model, loaded = _load_model(str(model_path))
 threshold = DEFAULT_THR.get(model_choice, 0.5)
@@ -170,7 +167,7 @@ else:
     )
 
 
-# --- Prepare signal ---
+
 noise_type = {v: k for k, v in NOISE_LABELS.items()}[noise_label]
 
 signal_12ch = signals[signal_idx].copy()
@@ -192,7 +189,7 @@ else:
     sig_color = CLASS_COLORS[true_label]
 
 
-# --- Plot ECG signal ---
+
 fig = plot_ecg_signal(
     signal_12ch[odvod_idx],
     fs=FS,
@@ -211,7 +208,6 @@ st.caption(
 )
 
 
-# --- Prediction ---
 if st.button("Pokreni klasifikaciju", type="primary", use_container_width=True):
     with st.spinner("Klasificiranje..."):
         pred, prob_mi = _predict(model, signal_12ch, threshold)
@@ -237,7 +233,10 @@ if st.button("Pokreni klasifikaciju", type="primary", use_container_width=True):
         if correct:
             st.success("Tačna predikcija")
         else:
-            st.error(f"Pogrešna predikcija. Stvarna klasa: **{CLASS_NAMES[true_label]}**")
+            st.error(
+                f"Pogrešna predikcija. "
+                f"Stvarna klasa: **{CLASS_NAMES[true_label]}**"
+            )
 
         confidence = max(prob_mi, prob_norm)
 
