@@ -23,10 +23,28 @@ _HIST_V1    = _ROOT / "outputs" / "logs"     / "training_history.json"
 _HIST_V3    = _ROOT / "outputs" / "logs"     / "training_history_v3.json"
 _EVAL_V1    = _ROOT / "outputs" / "reports"  / "eval_clean.json"
 _EVAL_V3    = _ROOT / "outputs" / "reports"  / "eval_clean_v3.json"
+_AGG_V1     = _ROOT / "outputs" / "reports"  / "aggregate_v1.json"
+_AGG_V3     = _ROOT / "outputs" / "reports"  / "aggregate_v3.json"
+_AGG_CMP    = _ROOT / "outputs" / "reports"  / "aggregate_comparison.json"
 
 
 def _load_json(path: Path) -> dict:
     return json.loads(path.read_text()) if path.exists() else {}
+
+
+def _ms(d: dict, digits: int = 4) -> str:
+    if not d or d.get("mean") is None:
+        return "-"
+    return f"{d['mean']:.{digits}f} ± {d['std']:.{digits}f}"
+
+
+def _stars(p) -> str:
+    if p is None:
+        return ""
+    if p < 0.001: return " ***"
+    if p < 0.01:  return " **"
+    if p < 0.05:  return " *"
+    return ""
 
 
 
@@ -125,42 +143,64 @@ fig_flow.update_layout(
 )
 st.plotly_chart(fig_flow, use_container_width=True)
 
-# --- V1 vs V3 training comparison ---
+# --- V1 vs V3 training comparison (objedinjeni rezultati, N=10) ---
 st.markdown("---")
-st.markdown("### Poredjenje treninga: V1 vs V3")
+st.markdown("### Poređenje treninga i performansi: V1 vs V3")
 
-h1 = _load_json(_HIST_V1)
-h3 = _load_json(_HIST_V3)
-e1 = _load_json(_EVAL_V1).get("metrics", {})
-e3 = _load_json(_EVAL_V3).get("metrics", {})
+agg1 = _load_json(_AGG_V1)
+agg3 = _load_json(_AGG_V3)
+cmp  = _load_json(_AGG_CMP)
 
-if h1 and h3:
+if agg1 and agg3 and cmp:
+    n1, n3 = agg1["n_runs"], agg3["n_runs"]
+    st.success(
+        f"Vrijednosti su objedinjene iz **{n1} (V1)** i **{n3} (V3)** nezavisnih treninga "
+        f"sa različitim slučajnim sjemenima — prikazane kao srednja vrijednost ± standardna "
+        f"devijacija. P-vrijednost dolazi iz uparenog t-testa (V1 vs V3 po istom sjemenu)."
+    )
+    t1, t3 = agg1["training"], agg3["training"]
+    c1, c3 = agg1["clean"], agg3["clean"]
+    cc = cmp["clean"]
+
+    def _row(name, v1s, v3s, p=None):
+        return {"Metrika": name, "V1 (bazni)": v1s, "V3 (augment.)": v3s,
+                "p (V1 vs V3)": ("-" if p is None else f"{p:.3f}{_stars(p)}")}
+
     cmp_rows = [
-        ("Broj epoha",            len(h1.get("train_loss", [])),     len(h3.get("train_loss", []))),
-        ("Najbolja epoha",        h1.get("best_epoch", "-"),          h3.get("best_epoch", "-")),
-        ("Najb. val F1",          f"{max(h1.get('val_f1', [0])):.4f}", f"{max(h3.get('val_f1', [0])):.4f}"),
-        ("Najb. val Loss",        f"{h1.get('best_val_loss', 0):.4f}", f"{h3.get('best_val_loss', 0):.4f}"),
-        ("Test F1 (cist skup)",   f"{e1.get('f1', 0):.4f}",           f"{e3.get('f1', 0):.4f}"),
-        ("Test AUC-ROC",          f"{e1.get('auc_roc', 0):.4f}",      f"{e3.get('auc_roc', 0):.4f}"),
-        ("Test Osjetljivost",     f"{e1.get('recall', 0):.4f}",        f"{e3.get('recall', 0):.4f}"),
+        _row("Broj epoha",        _ms(t1["n_epochs_run"], 1), _ms(t3["n_epochs_run"], 1)),
+        _row("Najbolja epoha",    _ms(t1["best_epoch"], 1),   _ms(t3["best_epoch"], 1)),
+        _row("Najb. val F1",      _ms(t1["best_val_f1"]),     _ms(t3["best_val_f1"])),
+        _row("Najb. val Loss",    _ms(t1["best_val_loss"]),   _ms(t3["best_val_loss"])),
+        _row("Test F1 (čist)",    _ms(c1["f1"]),      _ms(c3["f1"]),      cc["f1"].get("t_p")),
+        _row("Test AUC-ROC",      _ms(c1["auc_roc"]), _ms(c3["auc_roc"]), cc["auc_roc"].get("t_p")),
+        _row("Test Osjetljivost", _ms(c1["recall"]),  _ms(c3["recall"]),  cc["recall"].get("t_p")),
+        _row("Test Specifičnost", _ms(c1["specificity"]), _ms(c3["specificity"]), cc["specificity"].get("t_p")),
     ]
-    df_cmp = pd.DataFrame(cmp_rows, columns=["Metrika", "V1 (bazni)", "V3 (augment.)"])
-    st.dataframe(df_cmp, use_container_width=True, hide_index=True)
-
-    if h3.get("aug_count"):
-        avg_aug = sum(h3["aug_count"]) / len(h3["aug_count"])
-        st.caption(
-            f"V3 trening: prosjecno {avg_aug:.0f} augmentiranih uzoraka po epohi "
-            f"(od ~{len(h3['train_loss'])} epoha ukupno)."
-        )
+    st.dataframe(pd.DataFrame(cmp_rows), use_container_width=True, hide_index=True)
+    st.caption("Oznake značajnosti: * p<0.05, ** p<0.01, *** p<0.001.")
 
     st.info(
-        "Oba modela dijele istu arhitekturu (239 137 parametara). "
-        "V3 trening je trajao jednu epohu duze zbog nesto sporije konvergencije uzrokovane "
-        "sumom u trenaznim primjerima. Razlika u broju parametara ne postoji - razlika je "
-        "iskljucivo u procesu treninga."
+        "Oba modela dijele istu arhitekturu (239 137 parametara) — razlika je isključivo u "
+        "procesu treninga (V3 koristi augmentaciju šumom). Na čistom test skupu V1 i V3 su "
+        "**statistički ekvivalentni** (p > 0.05 za sve metrike), tj. augmentacija ne narušava "
+        "performanse na čistim signalima. Prednost V3 vidljiva je tek pod šumom "
+        "(stranica „Analiza robusnosti“ i „Multi-seed analiza“)."
     )
 else:
-    st.info("Pokrenite skripte 02_train.py i 02_train_v3.py da biste vidjeli podatke o treningu.")
+    # fallback na single-run ako agregati ne postoje
+    h1 = _load_json(_HIST_V1); h3 = _load_json(_HIST_V3)
+    e1 = _load_json(_EVAL_V1).get("metrics", {}); e3 = _load_json(_EVAL_V3).get("metrics", {})
+    if h1 and h3:
+        cmp_rows = [
+            ("Broj epoha", len(h1.get("train_loss", [])), len(h3.get("train_loss", []))),
+            ("Test F1 (cist skup)", f"{e1.get('f1', 0):.4f}", f"{e3.get('f1', 0):.4f}"),
+            ("Test AUC-ROC", f"{e1.get('auc_roc', 0):.4f}", f"{e3.get('auc_roc', 0):.4f}"),
+        ]
+        st.dataframe(pd.DataFrame(cmp_rows, columns=["Metrika", "V1 (bazni)", "V3 (augment.)"]),
+                     use_container_width=True, hide_index=True)
+        st.warning("Objedinjeni rezultati (N=10) nisu pronađeni — prikazan je pojedinačni run. "
+                   "Pokreni `scripts/11_aggregate_runs.py` za objedinjene vrijednosti.")
+    else:
+        st.info("Pokrenite skripte 02_train.py i 02_train_v3.py da biste vidjeli podatke o treningu.")
 
 page_footer()

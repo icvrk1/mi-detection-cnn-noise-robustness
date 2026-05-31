@@ -97,6 +97,29 @@ st.markdown(
     "i pokrenite klasifikaciju. Model vraća vjerovatnoću infarkta miokarda."
 )
 
+with st.expander("Koji model se koristi i kako radi predikcija?", expanded=False):
+    st.markdown(
+        """
+**Koji model (run)?** Ova stranica koristi **jedan fiksni, reprezentativan istrenirani model**
+po verziji — `outputs/models/best_model.pt` (V1) odnosno `best_model_v3.pt` (V3). To je
+pojedinačan model (jedno slučajno sjeme), a **ne** prosjek 10 runova. Razlog je interaktivnost:
+predikcija mora biti deterministička i trenutna za odabrani signal. Objedinjena analiza
+performansi preko 10 nezavisnih treninga (srednja vrijednost ± standardna devijacija, p-vrijednosti) nalazi se na stranici
+**„Multi-seed analiza“** — ona kvantifikuje pouzdanost, dok je ova stranica demonstracija rada
+modela na pojedinačnom snimku.
+
+**Na osnovu čega predikcija?** Model je 1D konvolucijska mreža koja iz 12-kanalnog signala
+(oblik 12 × 1000) računa jedan **logit**. Na njega se primijeni **sigmoidna** funkcija da se
+dobije vjerovatnoća pripadnosti klasi MI:
+
+$$P(\\text{MI}) = \\sigma(\\text{logit}) = \\frac{1}{1 + e^{-\\text{logit}}}$$
+
+Konačna odluka donosi se poređenjem sa **pragom** (prag = 0.5 za V1, 0.51 za V3):
+ako je $P(\\text{MI}) \\geq \\text{prag}$ → klasa **MI**, inače **NORM**. Kada se doda šum,
+isti model klasifikuje zašumljenu verziju istog snimka, pa se vidi kako šum utiče na odluku.
+        """
+    )
+
 
 try:
     ensure_test_data()

@@ -1,24 +1,37 @@
 # Detekcija infarkta miokarda korištenjem CNN modela u uslovima prisustva šuma
 
-Rad implementira sistem za automatsku detekciju infarkta miokarda (MI) iz 12-kanalnih EKG signala korištenjem jednodimenzionalne konvolucijske neuronske mreže (1D CNN). Model je treniran i evaluiran na PTB-XL skupu podataka koji sadrži klinicki anotovane EKG snimke od 21837 pacijenata.
+Ovaj projekat implementira sistem za automatsku detekciju infarkta miokarda (MI) iz 12-kanalnih EKG signala korištenjem jednodimenzionalne konvolucijske neuronske mreže (1D CNN). Sistem je razvijen nad PTB-XL skupom podataka i fokusiran je na binarnu klasifikaciju zapisa na klase **MI** i **NORM**, uz strogu podjelu po pacijentima.
 
-Tema rada je analiza robusnosti modela pod prisustvom realnog i sintetickog medicinskog šuma. Evaluacija pokriva pet vrsta šuma (gaussov šum, šum osnove, šum električne mreže, artefakt mišića i artefakt elektrode) za šest nivoa odnosa signal-šum (SNR) u opsegu od -6 dB do +24 dB.
-Uz primarni model (V1) treniran na cistim signalima, analizira se i model V3 treniran s augmentacijom šumom, radi poređenja uticaja augmentacije na robusnost u praktičnim uslovima.
+Poseban fokus projekta je analiza **robusnosti modela u prisustvu šuma**. Pored osnovnog modela treniranog na čistim signalima, implementiran je i model treniran uz **augmentaciju šumom**, kako bi se ispitalo da li takav pristup može poboljšati ponašanje modela u realističnijim uslovima rada.
 
+Konačni rezultati u radu prikazani su kroz **10 nezavisnih treninga** za svaki model, uz izvještavanje srednje vrijednosti, standardne devijacije i statističke značajnosti razlika između modela.
 
-## Kljucni rezultati
+---
 
-Primarni model (V1, prag 0.5) evaluiran na cistom test skupu:
+## Ključni rezultati
 
-| Metrika       | Vrijednost |
-|--------------|-----------|
-| F1            | 0.8826     |
-| AUC-ROC       | 0.9703     |
-| AUC-PR        | 0.9603     |
-| Tacnost       | 0.9124     |
-| Specificnost  | 0.9353     |
+### V1 model — bez augmentacije šumom
+| Metrika | Vrijednost |
+|--------|------------|
+| F1 | 0.8868 ± 0.0039 |
+| AUC-ROC | 0.9723 ± 0.0013 |
+| Tačnost | 0.9145 ± 0.0038 |
 
-Model zadržava F1 iznad 0.85 pri SNR >= 6 dB za sve testirane vrste šuma.
+### V3 model — sa augmentacijom šumom
+| Metrika | Vrijednost |
+|--------|------------|
+| F1 | 0.8831 ± 0.0048 |
+| AUC-ROC | 0.9724 ± 0.0014 |
+| Tačnost | 0.9124 ± 0.0047 |
+
+### Glavni zaključci
+- Na **čistom testnom skupu** modeli V1 i V3 pokazuju **statistički ekvivalentne performanse**.
+- Prednost modela V3 uočava se prvenstveno u uslovima **srednjeg nivoa šuma**.
+- Augmentacija šumom daje **statistički značajna poboljšanja robusnosti** za pojedine tipove šuma, posebno za:
+  - kolebanje osnovne linije,
+  - mišićni artefakt,
+  - artefakt pomicanja elektrode,
+  pri SNR vrijednostima oko **0 dB i 6 dB**.
 
 ## Tehnologije
 
@@ -140,6 +153,19 @@ Poređenje V1 i V3:
 python scripts/compare_v1_v3.py
 ```
 
+### Multi-seed analiza
+
+Za procjenu varijanse i statisticku poredbu V1 i V3 iz vise nezavisnih treninga:
+
+```bash
+python scripts/10_run_multi_seed.py --num-seeds 10 --start-seed 42
+python scripts/11_aggregate_runs.py
+python scripts/12_aggregate_training_curves.py
+```
+
+Objedinjeni rezultati (`outputs/reports/aggregate_v1.json`, `aggregate_v3.json`,
+`aggregate_comparison.json`) prikazuju se na stranici "Multi-seed analiza" u dashboardu.
+
 
 ## Dashboard
 
@@ -147,7 +173,7 @@ python scripts/compare_v1_v3.py
 streamlit run dashboard/app.py
 ```
 
-Dashboard sadrži šest stranica:
+Dashboard sadrži sedam stranica:
 
 1. **Pregled signala** - Pregled PTB-XL EKG signala iz test skupa
 2. **Laboratorija šuma** - Interaktivna vizualizacija injekcije šuma
@@ -155,9 +181,15 @@ Dashboard sadrži šest stranica:
 4. **Rezultati treninga** - Krivulje ucenja, konfuziona matrica, metrike
 5. **Robusnost** - Heatmape F1/AUC-ROC po tipu šuma i SNR nivou
 6. **Live predikcija** - Interaktivna klasifikacija EKG signala
+7. **Multi-seed analiza** - Objedinjeni rezultati iz vise nezavisnih treninga (srednja vrijednost ± standardna devijacija, p-vrijednosti)
 
 
-Finalni model teze: `outputs/models/best_model.pt` (V1).
-Glavni izvještaji: `outputs/reports/eval_clean.json`, `outputs/reports/eval_noisy.json`.
+Pojedinačni modeli i veći izlazni fileovi nisu dio repozitorija, nego se generišu lokalno.
 
+Glavni rezultati rada zasnovani su na multi-seed analizi i objedinjeni su u fileovima:
+- `outputs/reports/aggregate_v1.json`
+- `outputs/reports/aggregate_v3.json`
+- `outputs/reports/aggregate_comparison.json`
+
+Za svaki pojedinačni run generišu se zasebni izlazi, uključujući najbolji model, finalni model, historiju treniranja i evaluacijske izvještaje. Pojedinačni runovi služe za procjenu varijanse i statističko poređenje, dok su glavni zaključci rada izvedeni iz objedinjene analize svih runova.
 

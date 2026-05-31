@@ -3,12 +3,16 @@ Trening BaselineCNN na PTB-XL podacima.
   - BCEWithLogitsLoss sa automatskim pos_weight za neravnomjernost klasa
   - ReduceLROnPlateau scheduler (factor=0.5, patience=3)
   - Pracenje: train/val gubitak, tacnost, F1 po epohi
-  - Sprema: outputs/models/best_model.pt, outputs/logs/training_history.json
-  - Sprema: outputs/figures/training_curves.{png,pdf}
-  - Sprema: outputs/reports/model_architecture.txt
+  - Sprema model i historiju u izabrani izlazni direktorij
+
+CLI:
+  python scripts/02_train.py                 # backward kompatibilno: piše u outputs/{models,logs,...}
+  python scripts/02_train.py --seed 42       # override seed iz konfiga
+  python scripts/02_train.py --seed 42 --output-dir outputs/runs/v1/seed_42
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import time
@@ -30,18 +34,41 @@ CONFIG_PATH = Path("configs/config.yaml")
 with open(CONFIG_PATH) as f:
     cfg = yaml.safe_load(f)
 
-set_seed(cfg["seed"])
+parser = argparse.ArgumentParser(description="Trening BaselineCNN V1.")
+parser.add_argument("--seed", type=int, default=int(cfg["seed"]),
+                    help="Slucajno sjeme (default iz config.yaml).")
+parser.add_argument("--output-dir", type=str, default=None,
+                    help="Izlazni direktorij za model, historiju i figure. "
+                         "Ako nije zadat, koristi se default outputs/{models,logs,figures,reports}.")
+parser.add_argument("--tag", type=str, default="",
+                    help="Opcionalni sufiks u imenima izlaznih datoteka (npr. 'v1').")
+args = parser.parse_args()
+
+set_seed(args.seed)
 
 PROCESSED_PATH = Path(cfg["paths"]["processed"])
-MODELS_PATH    = Path(cfg["paths"]["models"])
-FIGURES_PATH   = Path(cfg["paths"]["figures"])
-REPORTS_PATH   = Path(cfg["paths"]["reports"])
-LOGS_PATH      = Path("outputs/logs")
 
-MODELS_PATH.mkdir(parents=True, exist_ok=True)
-FIGURES_PATH.mkdir(parents=True, exist_ok=True)
-REPORTS_PATH.mkdir(parents=True, exist_ok=True)
-LOGS_PATH.mkdir(parents=True, exist_ok=True)
+if args.output_dir is not None:
+    OUT_DIR = Path(args.output_dir)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    MODELS_PATH  = OUT_DIR
+    FIGURES_PATH = OUT_DIR
+    REPORTS_PATH = OUT_DIR
+    LOGS_PATH    = OUT_DIR
+else:
+    MODELS_PATH    = Path(cfg["paths"]["models"])
+    FIGURES_PATH   = Path(cfg["paths"]["figures"])
+    REPORTS_PATH   = Path(cfg["paths"]["reports"])
+    LOGS_PATH      = Path("outputs/logs")
+    for p in (MODELS_PATH, FIGURES_PATH, REPORTS_PATH, LOGS_PATH):
+        p.mkdir(parents=True, exist_ok=True)
+
+suffix = f"_{args.tag}" if args.tag else ""
+BEST_MODEL_NAME  = f"best_model{suffix}.pt"
+FINAL_MODEL_NAME = f"final_model{suffix}.pt"
+HISTORY_NAME     = f"training_history{suffix}.json"
+ARCH_NAME        = f"model_architecture{suffix}.txt"
+CURVES_STEM      = f"training_curves{suffix}"
 
 t_cfg      = cfg["training"]
 BATCH_SIZE = int(t_cfg["batch_size"])
@@ -51,6 +78,9 @@ PATIENCE   = int(t_cfg["early_stopping_patience"])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Uredaj: {device}")
+print(f"Seed:   {args.seed}")
+if args.output_dir is not None:
+    print(f"Izlaz:  {OUT_DIR}")
 
 # Ucitaj podatke 
 print("Ucitavanje train/val skupova ...")
@@ -87,7 +117,7 @@ try:
     arch_txt = str(summary)
 except Exception:
     arch_txt = f"BaselineCNN  in_channels={cfg['model']['in_channels']}  parametri={total_params:,}"
-arch_path = REPORTS_PATH / "model_architecture.txt"
+arch_path = REPORTS_PATH / ARCH_NAME
 arch_path.write_text(arch_txt, encoding="utf-8")
 print(f"  Arhitektura spr. -> {arch_path}")
 
@@ -182,7 +212,7 @@ for epoch in range(1, MAX_EPOCHS + 1):
         best_val_loss    = vl
         patience_counter = 0
         best_epoch       = epoch
-        torch.save(model.state_dict(), MODELS_PATH / "best_model.pt")
+        torch.save(model.state_dict(), MODELS_PATH / BEST_MODEL_NAME)
     else:
         patience_counter += 1
         if patience_counter >= PATIENCE:
@@ -190,12 +220,14 @@ for epoch in range(1, MAX_EPOCHS + 1):
             break
 
 # Spremi finalni model
-torch.save(model.state_dict(), MODELS_PATH / "final_model.pt")
+torch.save(model.state_dict(), MODELS_PATH / FINAL_MODEL_NAME)
 
-# Spremi historiju 
+# Spremi historiju
 history["best_epoch"]    = best_epoch
 history["best_val_loss"] = best_val_loss
-history_path = LOGS_PATH / "training_history.json"
+history["seed"]          = args.seed
+history["n_epochs_run"]  = len(history["train_loss"])
+history_path = LOGS_PATH / HISTORY_NAME
 with open(history_path, "w") as f:
     json.dump(history, f, indent=2)
 
@@ -204,7 +236,7 @@ print(f"\nTrening zavrsen za {elapsed:.1f}s ({elapsed/60:.1f} min)")
 print(f"  Najbolja epoha    : {best_epoch}")
 print(f"  Najbolji val loss : {best_val_loss:.4f}")
 print(f"  Najbolji val F1   : {max(history['val_f1']):.4f}")
-print(f"  Model spremen    -> {MODELS_PATH / 'best_model.pt'}")
+print(f"  Model spremljen    -> {MODELS_PATH / BEST_MODEL_NAME}")
 print(f"  Historija spr.   -> {history_path}")
 
 # Krive treninga 
@@ -237,10 +269,10 @@ axes[2].legend()
 axes[2].grid(True, alpha=0.3)
 
 plt.tight_layout()
-fig.savefig(FIGURES_PATH / "training_curves.png", dpi=300)
-fig.savefig(FIGURES_PATH / "training_curves.pdf")
+fig.savefig(FIGURES_PATH / f"{CURVES_STEM}.png", dpi=300)
+fig.savefig(FIGURES_PATH / f"{CURVES_STEM}.pdf")
 plt.close(fig)
-print(f"  Krive spr.       -> {FIGURES_PATH / 'training_curves.png'}")
+print(f"  Krive spr.       -> {FIGURES_PATH / f'{CURVES_STEM}.png'}")
 
 if max(history["val_f1"]) < 0.70:
     print("\n  UPOZORENJE: val F1 < 0.70 - rezultati mogu biti lose. Provjeri podatke.")

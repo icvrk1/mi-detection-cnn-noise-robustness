@@ -19,6 +19,14 @@ _HIST_V1 = _ROOT / "outputs" / "logs"    / "training_history.json"
 _HIST_V3 = _ROOT / "outputs" / "logs"    / "training_history_v3.json"
 _EVAL_V1 = _ROOT / "outputs" / "reports" / "eval_clean.json"
 _EVAL_V3 = _ROOT / "outputs" / "reports" / "eval_clean_v3.json"
+_AGG_V1  = _ROOT / "outputs" / "reports" / "aggregate_v1.json"
+_AGG_V3  = _ROOT / "outputs" / "reports" / "aggregate_v3.json"
+
+
+def _ms(d: dict, digits: int = 4) -> str:
+    if not d or d.get("mean") is None:
+        return "-"
+    return f"{d['mean']:.{digits}f} ± {d['std']:.{digits}f}"
 
 
 @st.cache_data(show_spinner=False)
@@ -83,8 +91,10 @@ def _render_model_tab(
 
     if best_ep:
         st.caption(
-            f"Trening: {n_epochs} epoha - model sacuvan na epohi {best_ep} "
-            f"(val_loss = {history.get('best_val_loss', 0):.4f})."
+            f"Reprezentativan run: {n_epochs} epoha — model sačuvan na epohi {best_ep} "
+            f"(val_loss = {history.get('best_val_loss', 0):.4f}). "
+            f"Metrike i matrica konfuzije ispod odnose se na ovaj pojedinačni run; "
+            f"konačne objedinjene vrijednosti (srednja vrijednost ± standardna devijacija) date su u banneru na vrhu stranice."
         )
 
     # Training curves - 2 columns
@@ -153,8 +163,27 @@ def _render_model_tab(
 st.title("Rezultati treninga")
 st.markdown(
     "Krive gubitka i F1 mjere tokom treninga, matrica konfuzije i sve klasifikacijske "
-    "metrike na cistom test skupu za oba modela."
+    "metrike na čistom test skupu za oba modela."
 )
+
+# --- Objedinjeni sažetak (N=10) ---
+_agg1 = json.loads(_AGG_V1.read_text()) if _AGG_V1.exists() else {}
+_agg3 = json.loads(_AGG_V3.read_text()) if _AGG_V3.exists() else {}
+if _agg1 and _agg3:
+    n1, n3 = _agg1["n_runs"], _agg3["n_runs"]
+    st.success(
+        f"Konačne metrike objedinjene su kroz **{n1} (V1)** i **{n3} (V3)** nezavisnih treninga "
+        f"(srednja vrijednost ± standardna devijacija). Krive treninga u karticama ispod prikazuju "
+        f"**jedan reprezentativan run** radi čitljivosti; krive sa pojasom standardne devijacije "
+        f"nalaze se na stranici „Multi-seed analiza“."
+    )
+    cc1, cc3 = _agg1["clean"], _agg3["clean"]
+    cols = st.columns(4)
+    cols[0].metric("V1 F1 (sr.±st.dev.)",  _ms(cc1["f1"]))
+    cols[1].metric("V1 AUC-ROC",           _ms(cc1["auc_roc"]))
+    cols[2].metric("V3 F1 (sr.±st.dev.)",  _ms(cc3["f1"]))
+    cols[3].metric("V3 AUC-ROC",           _ms(cc3["auc_roc"]))
+    st.markdown("---")
 
 # Download both V1 and V3 training files up front so v3_available is accurate
 if not _HIST_V1.exists() or not _EVAL_V1.exists():

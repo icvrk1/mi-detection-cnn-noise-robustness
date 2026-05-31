@@ -34,3 +34,24 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Multi-seed: dashboard (stranica "Multi-seed analiza", tab Krive treninga) cita
+# SAMO training_history_*.json po seedu (~64 KB ukupno). Sve ostalo u runs/
+# (checkpointi ~37 MB, per-seed figure/CSV/logovi) se NE commituje; regenerise se
+# sa scripts/10_run_multi_seed.py, a best modeli idu u GitHub Release.
+outputs/runs/**
+!outputs/runs/**/
+!outputs/runs/**/training_history_*.json
+
+# Streamlit log i privremeni radni fajlovi
+outputs/streamlit.log
+_*.txt
+
+# Materijali iskljucivo za generisanje pisane verzije rada (LaTeX makroi/figure);
+# nisu potrebni za pokretanje ML pipeline-a ni dashboarda
+MULTI_SEED.md
+scripts/13_thesis_tables_agg.py
+scripts/14_thesis_figures_agg.py
+scripts/15_thesis_numbers_agg.py
+scripts/16_export_latex_macros.py
+scripts/17_generate_placeholder_macros.py

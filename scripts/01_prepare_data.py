@@ -160,7 +160,7 @@ report = {
 report_path = REPORTS_PATH / "data_distribution.json"
 with open(report_path, "w") as f:
     json.dump(report, f, indent=2)
-print(f"\n  Izvjestaj spremen -> {report_path}")
+print(f"\n  Izvještaj spremljen -> {report_path}")
 
 #  Rezime 
 total_time = time.time() - t0

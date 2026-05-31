@@ -8,6 +8,7 @@ Sprema:
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import sys
@@ -28,12 +29,22 @@ CONFIG_PATH = Path("configs/config.yaml")
 with open(CONFIG_PATH) as f:
     cfg = yaml.safe_load(f)
 
-NOISY_PATH   = Path(cfg["paths"]["noisy"])
-MODELS_PATH  = Path(cfg["paths"]["models"])
-REPORTS_PATH = Path(cfg["paths"]["reports"])
-TABLES_PATH  = Path(cfg["paths"]["tables"])
-REPORTS_PATH.mkdir(parents=True, exist_ok=True)
-TABLES_PATH.mkdir(parents=True, exist_ok=True)
+NOISY_PATH           = Path(cfg["paths"]["noisy"])
+DEFAULT_MODELS_PATH  = Path(cfg["paths"]["models"])
+DEFAULT_REPORTS_PATH = Path(cfg["paths"]["reports"])
+DEFAULT_TABLES_PATH  = Path(cfg["paths"]["tables"])
+
+parser = argparse.ArgumentParser(description="Evaluacija V1 modela na zasumljenim test skupovima.")
+parser.add_argument("--model-path", type=str, default=str(DEFAULT_MODELS_PATH / "best_model.pt"))
+parser.add_argument("--output-json", type=str, default=str(DEFAULT_REPORTS_PATH / "eval_noisy.json"))
+parser.add_argument("--output-csv", type=str, default=str(DEFAULT_TABLES_PATH / "results_noisy.csv"))
+args = parser.parse_args()
+
+MODEL_PATH  = Path(args.model_path)
+OUTPUT_JSON = Path(args.output_json)
+OUTPUT_CSV  = Path(args.output_csv)
+OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
+OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
 
 NOISE_TYPES = cfg["noise"]["types"]
 SNR_LEVELS  = cfg["noise"]["snr_db"]
@@ -41,10 +52,10 @@ SNR_LEVELS  = cfg["noise"]["snr_db"]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Ucitaj model
-print("Ucitavanje modela ...")
+print(f"Ucitavanje modela: {MODEL_PATH}")
 model = BaselineCNN(num_channels=cfg["model"]["in_channels"]).to(device)
 model.load_state_dict(
-    torch.load(MODELS_PATH / "best_model.pt", map_location=device, weights_only=True)
+    torch.load(MODEL_PATH, map_location=device, weights_only=True)
 )
 
 # Evaluacija svih kombinacija
@@ -111,13 +122,13 @@ for noise_type in NOISE_TYPES:
         )
 
 # Spremi JSON
-json_path = REPORTS_PATH / "eval_noisy.json"
+json_path = OUTPUT_JSON
 with open(json_path, "w") as f:
     json.dump(results, f, indent=2)
-print(f"\nJSON spremen -> {json_path}")
+print(f"\nJSON spremljen -> {json_path}")
 
 # Spremi CSV
-csv_path = TABLES_PATH / "results_noisy.csv"
+csv_path = OUTPUT_CSV
 if csv_rows:
     fieldnames = ["noise_type", "snr_db", "accuracy", "precision", "recall",
                   "specificity", "f1", "auc_roc", "auc_pr", "tp", "tn", "fp", "fn"]
@@ -125,7 +136,7 @@ if csv_rows:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(csv_rows)
-    print(f"CSV spremen  -> {csv_path}")
+    print(f"CSV spremljen  -> {csv_path}")
 
 # Rezimirajuca tabela F1
 elapsed = time.time() - t0

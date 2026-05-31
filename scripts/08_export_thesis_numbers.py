@@ -114,4 +114,4 @@ print(f"\nSNR prag 90% F1 po vrsti suma:")
 for nt, snr_thr in numbers["robustness"]["snr_threshold_90pct_baseline"].items():
     label = "nije dostignut" if snr_thr is None else f"{snr_thr:+d} dB"
     print(f"  {nt:<22}: {label}")
-print(f"\nSpremen -> {out_path}")
+print(f"\nSpremljeno -> {out_path}")

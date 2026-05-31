@@ -22,12 +22,20 @@ st.set_page_config(
 )
 
 _REPORTS = _ROOT / "outputs" / "reports"
+_AGG_V1  = _REPORTS / "aggregate_v1.json"
+_AGG_V3  = _REPORTS / "aggregate_v3.json"
 
 
 def _load_json(path: Path) -> dict:
     if path.exists():
         return json.loads(path.read_text())
     return {}
+
+
+def _fmt_ms(d: dict, digits: int = 4) -> str:
+    if not d or d.get("mean") is None:
+        return "—"
+    return f"{d['mean']:.{digits}f} ± {d['std']:.{digits}f}"
 
 
 def _snr0_avg(noisy: dict) -> float:
@@ -48,9 +56,27 @@ def landing() -> None:
     noisy_v1   = _load_json(_REPORTS / "eval_noisy.json")
     noisy_v3   = _load_json(_REPORTS / "eval_noisy_v3.json")
     dist       = _load_json(_REPORTS / "data_distribution.json")
+    agg_v1     = _load_json(_AGG_V1)
+    agg_v3     = _load_json(_AGG_V3)
 
-    # --- V1 key metrics ---
-    if metrics_v1:
+    # --- Multi-seed objedinjeni banner ---
+    if agg_v1 and agg_v3:
+        n1 = agg_v1.get("n_runs", 0); n3 = agg_v3.get("n_runs", 0)
+        st.success(
+            f"Objedinjeni rezultati dostupni: V1 ({n1} runova), V3 ({n3} runova). "
+            f"Za potpunu analizu sa srednjim vrijednostima i p-vrijednostima, "
+            f"vidi stranicu **Multi-seed analiza** u meniju."
+        )
+        cln_v1 = agg_v1.get("clean", {})
+        st.markdown(f"### Bazni model (V1) - cist test skup (srednja vrijednost ± standardna devijacija, n={n1})")
+        c1, c2, c3, c4, c5, c6 = st.columns(6)
+        c1.metric("Tacnost",      _fmt_ms(cln_v1.get("accuracy"),    4))
+        c2.metric("F1 mjera",     _fmt_ms(cln_v1.get("f1"),          4))
+        c3.metric("AUC-ROC",      _fmt_ms(cln_v1.get("auc_roc"),     4))
+        c4.metric("Osjetljivost", _fmt_ms(cln_v1.get("recall"),      4))
+        c5.metric("Specificnost", _fmt_ms(cln_v1.get("specificity"), 4))
+        c6.metric("AUC-PR",       _fmt_ms(cln_v1.get("auc_pr"),      4))
+    elif metrics_v1:
         st.markdown("### Performanse baznog modela (V1) - cist test skup")
         c1, c2, c3, c4, c5, c6 = st.columns(6)
         c1.metric("Tacnost",      f"{metrics_v1['accuracy']:.2%}")
@@ -192,12 +218,13 @@ def landing() -> None:
 
 pages = [
     st.Page(landing, title="Pocetna"),
-    st.Page(_ROOT / "dashboard" / "pages" / "01_Signal_Explorer.py",  title="Istrazi signale"),
-    st.Page(_ROOT / "dashboard" / "pages" / "02_Noise_Lab.py",         title="Laboratorija suma"),
-    st.Page(_ROOT / "dashboard" / "pages" / "03_Model_Overview.py",    title="Pregled modela"),
-    st.Page(_ROOT / "dashboard" / "pages" / "04_Training_Results.py",  title="Rezultati treninga"),
-    st.Page(_ROOT / "dashboard" / "pages" / "05_Robustness.py",        title="Analiza robustnosti"),
-    st.Page(_ROOT / "dashboard" / "pages" / "06_Live_Prediction.py",   title="Live predikcija"),
+    st.Page(_ROOT / "dashboard" / "pages" / "01_Signal_Explorer.py",   title="Istrazi signale"),
+    st.Page(_ROOT / "dashboard" / "pages" / "02_Noise_Lab.py",          title="Laboratorija suma"),
+    st.Page(_ROOT / "dashboard" / "pages" / "03_Model_Overview.py",     title="Pregled modela"),
+    st.Page(_ROOT / "dashboard" / "pages" / "04_Training_Results.py",   title="Rezultati treninga"),
+    st.Page(_ROOT / "dashboard" / "pages" / "05_Robustness.py",         title="Analiza robustnosti"),
+    st.Page(_ROOT / "dashboard" / "pages" / "06_Live_Prediction.py",    title="Live predikcija"),
+    st.Page(_ROOT / "dashboard" / "pages" / "07_Multi_Seed_Analysis.py",title="Multi-seed analiza"),
 ]
 
 pg = st.navigation(pages)

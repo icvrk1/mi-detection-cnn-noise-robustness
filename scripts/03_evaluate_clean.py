@@ -8,6 +8,7 @@ Sprema:
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import datetime
@@ -33,13 +34,28 @@ with open(CONFIG_PATH) as f:
     cfg = yaml.safe_load(f)
 
 PROCESSED_PATH = Path(cfg["paths"]["processed"])
-MODELS_PATH    = Path(cfg["paths"]["models"])
-REPORTS_PATH   = Path(cfg["paths"]["reports"])
-FIGURES_PATH   = Path(cfg["paths"]["figures"])
-REPORTS_PATH.mkdir(parents=True, exist_ok=True)
-FIGURES_PATH.mkdir(parents=True, exist_ok=True)
+DEFAULT_MODELS_PATH  = Path(cfg["paths"]["models"])
+DEFAULT_REPORTS_PATH = Path(cfg["paths"]["reports"])
+DEFAULT_FIGURES_PATH = Path(cfg["paths"]["figures"])
 
-MODEL_FILE = MODELS_PATH / "best_model.pt"
+parser = argparse.ArgumentParser(description="Evaluacija V1 modela na cistom test skupu.")
+parser.add_argument("--model-path", type=str, default=str(DEFAULT_MODELS_PATH / "best_model.pt"),
+                    help="Putanja do .pt fajla sa tezinama modela.")
+parser.add_argument("--output-json", type=str, default=str(DEFAULT_REPORTS_PATH / "eval_clean.json"),
+                    help="Putanja izlaznog JSON izvjestaja.")
+parser.add_argument("--figures-dir", type=str, default=str(DEFAULT_FIGURES_PATH),
+                    help="Direktorij za matricu konfuzije i ROC krivu (ako prazno, ne crta).")
+parser.add_argument("--no-figures", action="store_true",
+                    help="Preskoci crtanje figura (korisno za multi-seed sweep).")
+args = parser.parse_args()
+
+MODEL_FILE   = Path(args.model_path)
+OUTPUT_JSON  = Path(args.output_json)
+FIGURES_PATH = Path(args.figures_dir)
+OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
+if not args.no_figures:
+    FIGURES_PATH.mkdir(parents=True, exist_ok=True)
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Ucitaj test skup
@@ -93,7 +109,7 @@ report = {
     "evaluation_timestamp": datetime.now().isoformat(),
 }
 
-out_path = REPORTS_PATH / "eval_clean.json"
+out_path = OUTPUT_JSON
 with open(out_path, "w") as f:
     json.dump(report, f, indent=2)
 
@@ -112,36 +128,37 @@ print(f"              Predvideno")
 print(f"              NORM   MI")
 print(f"  Stvarno NORM  {cm_tn:4d}  {cm_fp:4d}")
 print(f"          MI    {cm_fn:4d}  {cm_tp:4d}")
-print(f"\n  Izvjestaj spremen -> {out_path}")
+print(f"\n  Izvještaj spremljen -> {out_path}")
 
-# Matrica konfuzije - slika
-cm_arr = np.array([[cm_tn, cm_fp], [cm_fn, cm_tp]])
-fig_cm, ax_cm = plt.subplots(figsize=(5, 4))
-sns.heatmap(cm_arr, annot=True, fmt="d", cmap="Blues",
-            xticklabels=["NORM", "MI"], yticklabels=["NORM", "MI"], ax=ax_cm)
-ax_cm.set_xlabel("Predvidena klasa")
-ax_cm.set_ylabel("Stvarna klasa")
-ax_cm.set_title("Matrica konfuzije - cist test skup", fontweight="bold")
-fig_cm.tight_layout()
-for ext in ("png", "pdf"):
-    p = FIGURES_PATH / f"confusion_matrix_clean.{ext}"
-    fig_cm.savefig(p, dpi=300 if ext == "png" else None)
-    print(f"  Matrica konfuzije -> {p}")
-plt.close(fig_cm)
+if not args.no_figures:
+    # Matrica konfuzije - slika
+    cm_arr = np.array([[cm_tn, cm_fp], [cm_fn, cm_tp]])
+    fig_cm, ax_cm = plt.subplots(figsize=(5, 4))
+    sns.heatmap(cm_arr, annot=True, fmt="d", cmap="Blues",
+                xticklabels=["NORM", "MI"], yticklabels=["NORM", "MI"], ax=ax_cm)
+    ax_cm.set_xlabel("Predvidena klasa")
+    ax_cm.set_ylabel("Stvarna klasa")
+    ax_cm.set_title("Matrica konfuzije - cist test skup", fontweight="bold")
+    fig_cm.tight_layout()
+    for ext in ("png", "pdf"):
+        p = FIGURES_PATH / f"confusion_matrix_clean.{ext}"
+        fig_cm.savefig(p, dpi=300 if ext == "png" else None)
+        print(f"  Matrica konfuzije -> {p}")
+    plt.close(fig_cm)
 
-# ROC kriva
-fig_roc, ax_roc = plt.subplots(figsize=(6, 5))
-RocCurveDisplay.from_predictions(
-    results["y_true"], results["y_scores"],
-    name=f"CNN (AUC = {m['auc_roc']:.3f})",
-    ax=ax_roc, color="#0072B2",
-)
-ax_roc.plot([0, 1], [0, 1], "k--", lw=0.8, label="Slucajni klasifikator")
-ax_roc.set_title("ROC kriva - cist test skup", fontweight="bold")
-ax_roc.legend(loc="lower right")
-fig_roc.tight_layout()
-for ext in ("png", "pdf"):
-    p = FIGURES_PATH / f"roc_clean.{ext}"
-    fig_roc.savefig(p, dpi=300 if ext == "png" else None)
-    print(f"  ROC kriva        -> {p}")
-plt.close(fig_roc)
+    # ROC kriva
+    fig_roc, ax_roc = plt.subplots(figsize=(6, 5))
+    RocCurveDisplay.from_predictions(
+        results["y_true"], results["y_scores"],
+        name=f"CNN (AUC = {m['auc_roc']:.3f})",
+        ax=ax_roc, color="#0072B2",
+    )
+    ax_roc.plot([0, 1], [0, 1], "k--", lw=0.8, label="Slucajni klasifikator")
+    ax_roc.set_title("ROC kriva - cist test skup", fontweight="bold")
+    ax_roc.legend(loc="lower right")
+    fig_roc.tight_layout()
+    for ext in ("png", "pdf"):
+        p = FIGURES_PATH / f"roc_clean.{ext}"
+        fig_roc.savefig(p, dpi=300 if ext == "png" else None)
+        print(f"  ROC kriva        -> {p}")
+    plt.close(fig_roc)

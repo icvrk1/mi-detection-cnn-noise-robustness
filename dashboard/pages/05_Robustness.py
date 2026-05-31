@@ -23,6 +23,27 @@ _NOISY_V1 = _ROOT / "outputs" / "reports" / "eval_noisy.json"
 _CLEAN_V1 = _ROOT / "outputs" / "reports" / "eval_clean.json"
 _NOISY_V3 = _ROOT / "outputs" / "reports" / "eval_noisy_v3.json"
 _CLEAN_V3 = _ROOT / "outputs" / "reports" / "eval_clean_v3.json"
+_AGG_V1   = _ROOT / "outputs" / "reports" / "aggregate_v1.json"
+_AGG_V3   = _ROOT / "outputs" / "reports" / "aggregate_v3.json"
+
+
+@st.cache_data(show_spinner=False)
+def _load_agg_flat(agg_path: str) -> tuple[dict, dict, dict]:
+    """Iz aggregate_*.json gradi 'flat' strukture (srednje vrijednosti) koje
+    stranica ocekuje, plus paralelnu mapu standardnih devijacija.
+    Vraca: (noisy_mean, clean_mean, noisy_std)."""
+    agg = json.loads(Path(agg_path).read_text())
+    metrics = ["accuracy", "precision", "recall", "specificity", "f1", "auc_roc", "auc_pr"]
+    noisy_mean: dict = {}
+    noisy_std: dict = {}
+    for nt, by_snr in agg["noisy"].items():
+        noisy_mean[nt] = {}
+        noisy_std[nt] = {}
+        for snr_key, md in by_snr.items():
+            noisy_mean[nt][snr_key] = {m: md[m]["mean"] for m in metrics if m in md}
+            noisy_std[nt][snr_key]  = {m: md[m]["std"]  for m in metrics if m in md}
+    clean_mean = {"metrics": {m: agg["clean"][m]["mean"] for m in metrics}}
+    return noisy_mean, clean_mean, noisy_std
 
 METRIC_META = {
     "f1":       ("F1 mjera",  [0.4, 1.05]),
@@ -262,9 +283,11 @@ def _render_comparison(noisy_v1: dict, clean_v1: dict, noisy_v3: dict, clean_v3:
     )
     st.plotly_chart(fig_cmp, use_container_width=True)
     st.info(
-        "V3 (pune linije) je konzistentno bolji ili jednak V1 (isprekidane linije) pri svim "
-        "SNR nivoima, posebno izrazeno pri SNR = 0 dB gdje augmentacija suma ima najveci uticaj. "
-        "Razlika je minimalna pri visokim SNR nivoima (>= 12 dB) gdje signal dominira."
+        "V3 (pune linije) u prosjeku je bolji ili jednak V1 (isprekidane linije) u srednjem "
+        "SNR opsegu (0–6 dB), gdje augmentacija šuma ima najveći uticaj i gdje je razlika "
+        "statistički značajna za bazno lutanje, mišićni artefakt i pomicanje elektrode "
+        "(p < 0.05, vidi „Multi-seed analiza“). Pri visokim SNR nivoima (≥ 12 dB) razlika "
+        "nestaje jer se oba modela približavaju performansama na čistom signalu."
     )
 
 
@@ -289,9 +312,11 @@ def _render_comparison(noisy_v1: dict, clean_v1: dict, noisy_v3: dict, clean_v3:
     )
     st.plotly_chart(fig_diff, use_container_width=True)
     st.info(
-        "Razlika je najveca pri SNR = 0 dB za bazno lutanje i misicni artefakt "
-        "(Delta F1 ~ +0.10). Ovo su vrste suma koje se najcesce javljaju u klinickoj "
-        "praksi, sto augmentaciju suma cini kljucnom za prakticnu robustnost modela."
+        "Najveći prosječni dobitak augmentacije zabilježen je pri SNR = 0 dB za bazno lutanje "
+        "(≈ +0.09), mišićni artefakt (≈ +0.08) i pomicanje elektrode (≈ +0.06); te razlike su "
+        "statistički značajne (upareni t-test, p < 0.05). Pri vrlo niskom SNR-u (−6 dB) razlike "
+        "su nestabilne i standardna devijacija je velika (posebno za mrežnu smetnju), pa ih "
+        "treba tumačiti oprezno."
     )
 
 
@@ -302,14 +327,24 @@ def _render_comparison(noisy_v1: dict, clean_v1: dict, noisy_v3: dict, clean_v3:
 
 
 
-st.title("Analiza robustnosti na sum")
+st.title("Analiza robustnosti na šum")
 st.markdown(
-    "Performanse modela pri razlicitim vrstama suma i nivoima omjera signal-sum (SNR). "
-    "Nizi SNR znaci vise suma i tezi uvjeti za klasifikaciju. "
-    "Podaci iz stvarne evaluacije na 1 462 test snimaka za svaku od 30 kombinacija (suma x SNR)."
+    "Performanse modela pri različitim vrstama šuma i nivoima omjera signal-šum (SNR). "
+    "Niži SNR znači više šuma i teže uvjete za klasifikaciju. "
+    "Evaluacija je rađena na 1 462 test snimka za svaku od 30 kombinacija (šum × SNR)."
 )
 
-if not _NOISY_V1.exists():
+_AGG_MODE = _AGG_V1.exists() and _AGG_V3.exists()
+if _AGG_MODE:
+    _n1 = json.loads(_AGG_V1.read_text())["n_runs"]
+    _n3 = json.loads(_AGG_V3.read_text())["n_runs"]
+    st.success(
+        f"Prikazane vrijednosti su **srednje vrijednosti iz {_n1} (V1) / {_n3} (V3) "
+        f"nezavisnih treninga**. Za standardne devijacije, p-vrijednosti i krive sa error "
+        f"barovima pogledajte stranicu „Multi-seed analiza“."
+    )
+
+if not _AGG_MODE and not _NOISY_V1.exists():
     try:
         from utils.download_assets import ensure_noisy_results
         ensure_noisy_results()
@@ -317,7 +352,7 @@ if not _NOISY_V1.exists():
         st.error("Preuzimanje rezultata evaluacije robustnosti nije uspjelo.")
         st.exception(e)
 
-_USING_MOCK = not _NOISY_V1.exists()
+_USING_MOCK = (not _AGG_MODE) and (not _NOISY_V1.exists())
 if _USING_MOCK:
     st.info(
         "Demo rezim: stvarni rezultati evaluacije nisu dostupni. "
@@ -327,7 +362,7 @@ if _USING_MOCK:
     _mock_noisy = get_mock_noisy_eval()
     _mock_clean = get_mock_clean_eval()
 
-v3_available = (not _USING_MOCK) and _NOISY_V3.exists() and _CLEAN_V3.exists()
+v3_available = _AGG_MODE or ((not _USING_MOCK) and _NOISY_V3.exists() and _CLEAN_V3.exists())
 
 model_options = ["V1 (bazni model)"]
 if v3_available:
@@ -342,9 +377,20 @@ metric_choice = st.sidebar.radio(
 
 metric_label, y_range = METRIC_META[metric_choice]
 
+_suffix = "(srednje vrijednosti, N=10)" if _AGG_MODE else ""
 
 if _USING_MOCK:
     _render_single(_mock_noisy, _mock_clean, metric_choice, metric_label, y_range, "(demo)")
+
+elif _AGG_MODE:
+    nv1, cv1, _ = _load_agg_flat(str(_AGG_V1))
+    nv3, cv3, _ = _load_agg_flat(str(_AGG_V3))
+    if model_choice == "V1 (bazni model)":
+        _render_single(nv1, cv1, metric_choice, metric_label, y_range, f"V1 {_suffix}")
+    elif model_choice == "V3 (augmentirani model)":
+        _render_single(nv3, cv3, metric_choice, metric_label, y_range, f"V3 {_suffix}")
+    else:
+        _render_comparison(nv1, cv1, nv3, cv3, metric_choice, metric_label)
 
 elif model_choice == "V1 (bazni model)":
     noisy, clean = _load(str(_NOISY_V1), str(_CLEAN_V1))
