@@ -284,7 +284,7 @@ def _render_comparison(noisy_v1: dict, clean_v1: dict, noisy_v3: dict, clean_v3:
     st.plotly_chart(fig_cmp, use_container_width=True)
     st.info(
         "V3 (pune linije) u prosjeku je bolji ili jednak V1 (isprekidane linije) u srednjem "
-        "SNR opsegu (0–6 dB), gdje augmentacija šuma ima najveći uticaj i gdje je razlika "
+        "SNR opsegu (0-6 dB), gdje augmentacija šuma ima najveći uticaj i gdje je razlika "
         "statistički značajna za bazno lutanje, mišićni artefakt i pomicanje elektrode "
         "(p < 0.05, vidi „Multi-seed analiza“). Pri visokim SNR nivoima (≥ 12 dB) razlika "
         "nestaje jer se oba modela približavaju performansama na čistom signalu."

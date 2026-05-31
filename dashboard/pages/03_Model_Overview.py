@@ -155,7 +155,7 @@ if agg1 and agg3 and cmp:
     n1, n3 = agg1["n_runs"], agg3["n_runs"]
     st.success(
         f"Vrijednosti su objedinjene iz **{n1} (V1)** i **{n3} (V3)** nezavisnih treninga "
-        f"sa različitim slučajnim sjemenima — prikazane kao srednja vrijednost ± standardna "
+        f"sa različitim slučajnim sjemenima - prikazane kao srednja vrijednost ± standardna "
         f"devijacija. P-vrijednost dolazi iz uparenog t-testa (V1 vs V3 po istom sjemenu)."
     )
     t1, t3 = agg1["training"], agg3["training"]
@@ -180,7 +180,7 @@ if agg1 and agg3 and cmp:
     st.caption("Oznake značajnosti: * p<0.05, ** p<0.01, *** p<0.001.")
 
     st.info(
-        "Oba modela dijele istu arhitekturu (239 137 parametara) — razlika je isključivo u "
+        "Oba modela dijele istu arhitekturu (239 137 parametara) - razlika je isključivo u "
         "procesu treninga (V3 koristi augmentaciju šumom). Na čistom test skupu V1 i V3 su "
         "**statistički ekvivalentni** (p > 0.05 za sve metrike), tj. augmentacija ne narušava "
         "performanse na čistim signalima. Prednost V3 vidljiva je tek pod šumom "
@@ -198,7 +198,7 @@ else:
         ]
         st.dataframe(pd.DataFrame(cmp_rows, columns=["Metrika", "V1 (bazni)", "V3 (augment.)"]),
                      use_container_width=True, hide_index=True)
-        st.warning("Objedinjeni rezultati (N=10) nisu pronađeni — prikazan je pojedinačni run. "
+        st.warning("Objedinjeni rezultati (N=10) nisu pronađeni - prikazan je pojedinačni run. "
                    "Pokreni `scripts/11_aggregate_runs.py` za objedinjene vrijednosti.")
     else:
         st.info("Pokrenite skripte 02_train.py i 02_train_v3.py da biste vidjeli podatke o treningu.")

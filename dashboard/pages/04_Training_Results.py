@@ -91,7 +91,7 @@ def _render_model_tab(
 
     if best_ep:
         st.caption(
-            f"Reprezentativan run: {n_epochs} epoha — model sačuvan na epohi {best_ep} "
+            f"Reprezentativan run: {n_epochs} epoha - model sačuvan na epohi {best_ep} "
             f"(val_loss = {history.get('best_val_loss', 0):.4f}). "
             f"Metrike i matrica konfuzije ispod odnose se na ovaj pojedinačni run; "
             f"konačne objedinjene vrijednosti (srednja vrijednost ± standardna devijacija) date su u banneru na vrhu stranice."
