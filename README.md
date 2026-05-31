@@ -10,14 +10,14 @@ Konačni rezultati u radu prikazani su kroz **10 nezavisnih treninga** za svaki 
 
 ## Ključni rezultati
 
-### V1 model — bez augmentacije šumom
+### V1 model - bez augmentacije šumom
 | Metrika | Vrijednost |
 |--------|------------|
 | F1 | 0.8868 ± 0.0039 |
 | AUC-ROC | 0.9723 ± 0.0013 |
 | Tačnost | 0.9145 ± 0.0038 |
 
-### V3 model — sa augmentacijom šumom
+### V3 model - sa augmentacijom šumom
 | Metrika | Vrijednost |
 |--------|------------|
 | F1 | 0.8831 ± 0.0048 |
